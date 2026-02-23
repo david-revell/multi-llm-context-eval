@@ -83,6 +83,16 @@ def ask_llama_groq(prompt: str) -> str:
         raise RuntimeError("GROQ_API_KEY or GROQ_MODEL missing")
 
     client = OpenAI(api_key=key, base_url="https://api.groq.com/openai/v1")
+    # Groq supports OpenAI-compatible APIs, but chat.completions may be disabled
+    # for some keys/accounts while responses works. Prefer responses first.
+    try:
+        resp = client.responses.create(model=model, input=prompt)
+        text = getattr(resp, "output_text", "") or ""
+        if text.strip():
+            return text.strip()
+    except Exception:
+        pass
+
     resp = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
@@ -120,7 +130,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    load_dotenv()
+    load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / '.env', override=True)
     root = Path(__file__).resolve().parents[1]
     data_path = root / args.data
     out_dir = root / "outputs"
@@ -183,4 +193,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
 
