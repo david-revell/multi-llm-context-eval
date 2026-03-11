@@ -3,4 +3,4 @@ __pycache__/
 .env
 outputs/raw_results_*.jsonl
 outputs/summary_*.csv
-archive/
+internal/
