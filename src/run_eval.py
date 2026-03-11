@@ -1,4 +1,4 @@
-﻿import argparse
+import argparse
 import csv
 import json
 import os
@@ -118,6 +118,13 @@ def load_rows(csv_path: Path) -> list[dict]:
     return rows
 
 
+def load_context(context_path: Path) -> str:
+    text = context_path.read_text(encoding="utf-8").strip()
+    if not text:
+        raise RuntimeError(f"Context file is empty: {context_path}")
+    return text
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -127,12 +134,14 @@ def main() -> None:
         choices=["openai", "anthropic", "gemini", "llama"],
     )
     parser.add_argument("--data", default="data/eval_set.csv")
+    parser.add_argument("--context-file", default="artifacts/velutrex_product_information.md")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / '.env', override=True)
     root = Path(__file__).resolve().parents[1]
     data_path = root / args.data
+    context_path = root / args.context_file
     out_dir = root / "outputs"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -144,6 +153,7 @@ def main() -> None:
     }
 
     rows = load_rows(data_path)
+    default_context = load_context(context_path)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_jsonl = out_dir / f"raw_results_{ts}.jsonl"
     out_csv = out_dir / f"summary_{ts}.csv"
@@ -152,7 +162,7 @@ def main() -> None:
     with out_jsonl.open("w", encoding="utf-8") as jf:
         for row in rows:
             for provider in args.providers:
-                prompt = build_prompt(row["context"], row["question"])
+                prompt = build_prompt(default_context, row["question"])
                 if args.dry_run:
                     answer = f"DRY_RUN_{provider}"
                     err = ""

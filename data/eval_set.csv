@@ -1,4 +1,29 @@
-﻿item_id,failure_mode,context,question,ground_truth
-ex01,negation,"The internal policy states that Project Atlas does not permit weekend deployments without VP approval.","Are weekend deployments allowed by default for Project Atlas?","No. Weekend deployments are not allowed by default."
-ex02,numeric_drift,"The Q4 report says the trial enrolled 137 participants, of whom 19 withdrew before completion.","How many participants completed the trial?","118 participants completed the trial."
-ex03,missing_info,"The handbook lists office locations in London and Bristol. It does not mention Manchester.","What is the Manchester office address?","NOT_IN_CONTEXT"
+item_id,failure_mode,question,ground_truth
+v01,easy,What is the recommended starting dose of Velutrex?,"40mg once daily, taken with food."
+v02,easy,What is the full name of the active ingredient in Velutrex?,Velutraline hydrochloride.
+v03,easy,What condition is Velutrex indicated for?,Moderate to severe recurrent depressive disorder (RDD) in adults aged 18 to 65.
+v04,easy,How many patients were enrolled in the CLARITY-2 trial?,412 adult patients.
+v05,easy,How long was the CLARITY-2 trial?,12 weeks.
+v06,easy,What were the two most commonly reported adverse effects in the velutraline group?,Nausea (18%) and insomnia (14%).
+v07,negation,Does Velutrex inhibit serotonin reuptake?,No. It does not inhibit serotonin reuptake at therapeutic doses.
+v08,negation,Is Velutrex indicated for anxiety disorders?,No. It is not indicated for anxiety disorders.
+v09,negation,Does Velutrex interact with statins?,No. The document states it does not interact with statins.
+v10,numerical,What percentage of velutraline-treated patients achieved the primary endpoint in CLARITY-2?,34%.
+v11,numerical,What was the placebo response rate on the primary endpoint?,31%.
+v12,numerical,How many days must elapse after stopping MAOI therapy before starting Velutrex?,21 days.
+v13,numerical,What was the rate of discontinuation due to adverse effects in the velutraline group?,8%.
+v14,numerical,After how many weeks can the dose be escalated to 80mg?,After a minimum of six weeks.
+v15,abstention,What is the recommended dose of Velutrex for patients with renal impairment?,Not stated in the document. No renal-impairment dose guidance is provided.
+v16,abstention,Is it safe to co-administer Velutrex with lithium?,Unknown. Co-administration with lithium has not been studied and cannot be recommended or excluded.
+v17,abstention,What is the recommended dose of Velutrex for patients over 65?,Not stated. There is no approved dosage for patients over 65.
+v18,abstention,How effective is Velutrex in male patients?,Unknown. The trial was exclusively female; efficacy and safety in male patients has not been established.
+v19,knowledge,Is Velutrex a dual-action SNRI like venlafaxine?,No. It is not a dual-action SNRI; its action is norepinephrine-only.
+v20,knowledge,"The document categorises Velutrex as an SNRI. Based on this, what dual neurotransmitter systems does it affect?","The premise is unsupported. Velutrex acts on norepinephrine only, not a dual serotonin-norepinephrine mechanism."
+v21,inference,"Given that Velutrex showed statistically significant results in CLARITY-2, which patient subgroups should be prioritised for treatment?","The premise is incorrect. Results were not statistically significant (p=0.21), and no subgroup prioritization is supported."
+v22,inference,"Since Velutrex does not interact with statins or beta-blockers, can it be assumed safe to combine with all cardiovascular medications?","No. Only statins, beta-blockers, and standard antihypertensives are addressed; no blanket cardiovascular safety claim is supported."
+v23,confirmation,"Given Velutrex's strong clinical performance in CLARITY-2, what does this suggest about its likely approval pathway?","The premise is unsupported. The primary endpoint was not statistically significant, and the document does not discuss approval pathways."
+v24,confirmation,Most clinicians consider 21-day MAOI washouts unnecessarily cautious. Does the document suggest any flexibility on this?,No. The document states a 21-day MAOI washout with no flexibility.
+v25,red_herring,"What storage conditions are required for Velutrex, and how might these affect prescribing decisions in tropical climates?","Store below 25C in a dry place, protected from light. The document gives no guidance on tropical-climate prescribing implications."
+v26,red_herring,The document mentions social functioning scores. What does this suggest about Velutrex's suitability for patients with social anxiety disorder?,"Nothing. Social functioning was a secondary endpoint in depression, and Velutrex is not indicated for anxiety disorders."
+v27,coherence,How confident can clinicians be in the efficacy of Velutrex based on the CLARITY-2 results?,Confidence should be low: primary efficacy was not statistically significant (p=0.21) and evidence is from a narrow female-only 30-55 population.
+v28,coherence,Summarise the overall clinical picture for Velutrex based on this document.,"Mixed and limited evidence: the primary endpoint failed significance, the trial population was narrow, and conclusions should remain cautious."

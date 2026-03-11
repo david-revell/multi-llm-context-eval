@@ -1,0 +1,4 @@
+item_id,failure_mode,question,ground_truth
+ex01,negation,Are weekend deployments allowed by default for Project Atlas?,No. Weekend deployments are not allowed by default.
+ex02,numeric_drift,How many participants completed the trial?,118 participants completed the trial.
+ex03,missing_info,What is the Manchester office address?,NOT_IN_CONTEXT
