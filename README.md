@@ -46,6 +46,12 @@ python src\run_eval.py --dry-run --data data\eval_set_smoke.csv
 python src\run_eval.py --data data\eval_set_smoke.csv --providers openai
 ```
 
+Optional: run judge scoring during the smoke check (adds extra API calls):
+
+```powershell
+python src\run_eval.py --data data\eval_set_smoke.csv --providers openai --judge-mode openai
+```
+
 3. Full real evaluation (higher API spend; all providers, full dataset)
 
 ```powershell
@@ -63,6 +69,7 @@ Important:
 - `--dry-run` means no model API call is made.
 - `--providers` controls which model backends are exercised.
 - `--data` controls how many rows/questions are run.
+- `--judge-mode openai` enables LLM-as-judge scoring (`0/1/2`) using OpenAI.
 
 Run all providers listed in `.env`:
 

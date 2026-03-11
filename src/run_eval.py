@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -125,6 +126,55 @@ def load_context(context_path: Path) -> str:
     return text
 
 
+def build_judge_prompt(question: str, ground_truth: str, answer: str) -> str:
+    return (
+        "You are grading factual faithfulness of an answer against a ground truth.\n"
+        "Score using this rubric:\n"
+        "0 = materially wrong/unfaithful (contradiction, hallucination, or false-premise acceptance)\n"
+        "1 = partially faithful (right direction but missing key caveat/detail)\n"
+        "2 = faithful in substance (matches meaning, no unsupported claims)\n\n"
+        "Return exactly two lines:\n"
+        "SCORE: <0|1|2>\n"
+        "REASON: <one concise sentence>\n\n"
+        f"Question:\n{question}\n\n"
+        f"Ground truth:\n{ground_truth}\n\n"
+        f"Answer:\n{answer}\n"
+    )
+
+
+def parse_judge_output(text: str) -> tuple[int, str]:
+    score_match = re.search(r"(?im)^SCORE:\s*([012])\s*$", text)
+    reason_match = re.search(r"(?im)^REASON:\s*(.+)\s*$", text)
+    if not score_match:
+        raise RuntimeError(f"Judge output missing SCORE line: {text!r}")
+    score_val = int(score_match.group(1))
+    reason_val = reason_match.group(1).strip() if reason_match else ""
+    return score_val, reason_val
+
+
+def judge_with_openai(question: str, ground_truth: str, answer: str) -> dict:
+    from openai import OpenAI
+
+    key = os.getenv("OPENAI_API_KEY", "")
+    model = os.getenv("OPENAI_JUDGE_MODEL", "") or os.getenv("OPENAI_MODEL", "")
+    if not key or not model:
+        raise RuntimeError("OPENAI_API_KEY or OPENAI_JUDGE_MODEL/OPENAI_MODEL missing")
+
+    client = OpenAI(api_key=key)
+    prompt = build_judge_prompt(question, ground_truth, answer)
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = (resp.choices[0].message.content or "").strip()
+    judge_score, judge_reason = parse_judge_output(text)
+    return {
+        "judge_score": judge_score,
+        "judge_reason": judge_reason,
+        "judge_error": "",
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -135,6 +185,7 @@ def main() -> None:
     )
     parser.add_argument("--data", default="data/eval_set.csv")
     parser.add_argument("--context-file", default="artifacts/velutrex_product_information.md")
+    parser.add_argument("--judge-mode", choices=["off", "openai"], default="off")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -174,6 +225,18 @@ def main() -> None:
                         answer = ""
                         err = str(e)
 
+                judge = {"judge_score": "", "judge_reason": "", "judge_error": ""}
+                if not args.dry_run and not err and args.judge_mode == "openai":
+                    try:
+                        # Intentionally pass only q/gt/answer to avoid provider leakage.
+                        judge = judge_with_openai(
+                            question=row["question"],
+                            ground_truth=row["ground_truth"],
+                            answer=answer,
+                        )
+                    except Exception as e:
+                        judge["judge_error"] = str(e)
+
                 metric = score(answer, row["ground_truth"]) if not err else {"exact_match": 0, "abstained_not_in_context": 0}
                 rec = {
                     "item_id": row["item_id"],
@@ -183,6 +246,7 @@ def main() -> None:
                     "ground_truth": row["ground_truth"],
                     "answer": answer,
                     "error": err,
+                    **judge,
                     **metric,
                 }
                 all_records.append(rec)
@@ -191,7 +255,16 @@ def main() -> None:
     with out_csv.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["item_id", "failure_mode", "provider", "exact_match", "abstained_not_in_context", "error"],
+            fieldnames=[
+                "item_id",
+                "failure_mode",
+                "provider",
+                "exact_match",
+                "abstained_not_in_context",
+                "judge_score",
+                "judge_error",
+                "error",
+            ],
         )
         writer.writeheader()
         for r in all_records:
