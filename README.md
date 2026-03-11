@@ -1,4 +1,4 @@
-﻿# Multi-LLM RAG-Style Context Evaluation
+# Multi-LLM Context Evaluation
 
 Synthetic evaluation corpus for comparing context-grounded generation across multiple LLM providers (OpenAI, Gemini, Claude, Llama).
 
@@ -12,7 +12,8 @@ This scaffold evaluates one core behavior: can each model answer from provided c
 
 ## Repo Layout
 
-- `data/eval_set.csv`: tiny starter dataset
+- `artifacts/`: source evaluation assets (Velutrex corpus and question set)
+- `data/eval_set.csv`: runtime evaluation dataset used by the runner
 - `src/run_eval.py`: minimal runner
 - `.env.example`: required keys/models
 - `requirements.txt`: SDK dependencies
@@ -54,6 +55,12 @@ CSV columns:
 - `context`
 - `question`
 - `ground_truth`
+
+## Evaluation Artifacts
+
+- `artifacts/velutrex_product_information.docx`: injected context document for the Velutrex eval.
+- `artifacts/velutrex_question_set.docx`: 28-question source set and trap taxonomy.
+- `data/eval_set.csv` should contain the operational CSV version of the question set used by `run_eval.py`.
 
 ## Notes
 
