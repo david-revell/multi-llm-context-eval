@@ -30,6 +30,40 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
+## Which Command To Run
+
+Use this sequence every time to avoid accidental spend.
+
+1. Safe plumbing check (no API spend)
+
+```powershell
+python src\run_eval.py --dry-run --data data\eval_set_smoke.csv
+```
+
+2. Cheap real check (small API spend; one provider, 3 rows)
+
+```powershell
+python src\run_eval.py --data data\eval_set_smoke.csv --providers openai
+```
+
+3. Full real evaluation (higher API spend; all providers, full dataset)
+
+```powershell
+python src\run_eval.py --data data\eval_set.csv --providers openai anthropic gemini llama
+```
+
+How to choose:
+
+- Use `--dry-run` when you only want to validate wiring, paths, and output files.
+- Use `eval_set_smoke.csv` when you want a fast, low-cost real sanity check.
+- Use `eval_set.csv` only when you are ready for full paid evaluation.
+
+Important:
+
+- `--dry-run` means no model API call is made.
+- `--providers` controls which model backends are exercised.
+- `--data` controls how many rows/questions are run.
+
 Run all providers listed in `.env`:
 
 ```powershell
