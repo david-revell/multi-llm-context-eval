@@ -110,6 +110,7 @@ CSV columns:
 - `llama` in this scaffold uses a Groq-compatible OpenAI endpoint (`GROQ_API_KEY`, `GROQ_MODEL`).
 - The scoring is intentionally minimal for now (exact-match flag + abstention flag).
 - This is an analysis-first starter: expand dataset + metrics before engineering complexity.
+- For the planned LLM-as-judge stage, judge input should be de-identified (no provider/model labels in judge prompts).
 
 ## Design Rationale
 

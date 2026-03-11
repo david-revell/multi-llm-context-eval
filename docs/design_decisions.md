@@ -34,6 +34,11 @@ Measure **context-grounded generation behavior** across providers, not retrieval
 - Current scoring is exact match plus `NOT_IN_CONTEXT` abstention flag.
 - Rationale: lightweight baseline to run comparisons now; judge-based semantic scoring can be added later.
 
+7. Judge-input de-identification requirement (for LLM-as-judge stage)
+- Judge prompts must include only: `question`, `ground_truth`, `answer`.
+- Judge prompts must not include provider/model identifiers (for example `provider`, `model`, `openai`, `anthropic`, `gemini`, `llama`).
+- Rationale: prevent provider leakage/bias in judging and keep cross-provider comparison fair.
+
 ## Explicit Non-Goals (Current Phase)
 
 - Building a retrieval stack (chunking, embeddings, vector DB, reranking).
