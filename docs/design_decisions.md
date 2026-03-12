@@ -52,6 +52,11 @@ Measure **context-grounded generation behavior** across providers, not retrieval
 - The runner supports a `--judge-only` mode that takes an existing JSONL of raw answers and produces judged outputs.
 - Rationale: keeps generation and scoring decoupled, allowing a single paid run to be judged later without re-running providers.
 
+11. Provider-scoped throttling for rate limits
+- A `--sleep-seconds` throttle is supported, defaulting to **Gemini-only** unless `--sleep-providers` is explicitly set.
+- Rationale: Gemini free-tier RPM/RPD limits are tight and caused partial failures in a full run; throttling Gemini reduces 429s without slowing all providers. RPM = requests per minute; a 12s sleep yields ~5 RPM (60 / 12).
+- What was not done: a full adaptive retry/backoff layer across all providers (overkill for this eval-first scaffold).
+
 ## Explicit Non-Goals (Current Phase)
 
 - Building a retrieval stack (chunking, embeddings, vector DB, reranking).

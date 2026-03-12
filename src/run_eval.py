@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -191,7 +192,12 @@ def main() -> None:
     parser.add_argument("--input-jsonl", default="")
     parser.add_argument("--output-jsonl", default="")
     parser.add_argument("--output-csv", default="")
+    parser.add_argument("--item-ids", nargs="+", default=[])
+    parser.add_argument("--sleep-seconds", type=float, default=0.0)
+    parser.add_argument("--sleep-providers", nargs="+", default=[])
     args = parser.parse_args()
+    if args.sleep_seconds > 0 and not args.sleep_providers:
+        args.sleep_providers = ["gemini"]
 
     load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / '.env', override=True)
     root = Path(__file__).resolve().parents[1]
@@ -220,7 +226,10 @@ def main() -> None:
                 line = line.strip()
                 if not line:
                     continue
-                records.append(json.loads(line))
+                rec = json.loads(line)
+                if args.item_ids and rec.get("item_id") not in args.item_ids:
+                    continue
+                records.append(rec)
 
         total = len(records)
         with out_jsonl.open("w", encoding="utf-8") as jf:
@@ -247,6 +256,8 @@ def main() -> None:
                 provider = rec.get("provider", "unknown")
                 item_id = rec.get("item_id", "unknown")
                 print(f"Progress {idx}/{total} | provider={provider} | item_id={item_id} | {judge_note}", flush=True)
+                if args.sleep_seconds > 0 and (not args.sleep_providers or provider in args.sleep_providers):
+                    time.sleep(args.sleep_seconds)
 
         with out_csv.open("w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(
@@ -280,6 +291,8 @@ def main() -> None:
     }
 
     rows = load_rows(data_path)
+    if args.item_ids:
+        rows = [r for r in rows if r.get("item_id") in args.item_ids]
     default_context = load_context(context_path)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_jsonl = out_dir / f"raw_results_{ts}.jsonl"
@@ -335,6 +348,8 @@ def main() -> None:
                     f"Progress {counter}/{total} | q {row_idx}/{len(rows)} | provider={provider} | item_id={row['item_id']} | {judge_note}",
                     flush=True,
                 )
+                if args.sleep_seconds > 0 and (not args.sleep_providers or provider in args.sleep_providers):
+                    time.sleep(args.sleep_seconds)
 
     with out_csv.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(

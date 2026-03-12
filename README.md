@@ -92,6 +92,24 @@ Run a subset:
 python src\run_eval.py --providers openai anthropic
 ```
 
+Run specific item_ids only:
+
+```powershell
+python src\run_eval.py --providers openai --item-ids v07 v08 v09
+```
+
+Rate limiting (sleep between calls):
+
+```powershell
+python src\run_eval.py --providers gemini --item-ids v07 v08 v09 --sleep-seconds 12
+```
+
+Notes:
+- `--sleep-seconds` defaults to applying **only** to `gemini` unless `--sleep-providers` is explicitly provided.
+- This exists because Gemini free-tier RPM limits are tight and can trigger 429s on longer runs.
+- If you want to throttle other providers, add `--sleep-providers` (e.g., `--sleep-providers gemini openai`).
+- RPM = requests per minute. A 12s sleep yields ~5 RPM (60 / 12).
+
 Dry-run (no API calls):
 
 ```powershell
