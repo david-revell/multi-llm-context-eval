@@ -58,6 +58,9 @@ python src\run_eval.py --data data\eval_set_smoke.csv --providers openai --judge
 python src\run_eval.py --data data\eval_set.csv --providers openai anthropic gemini llama
 ```
 
+Progress logging:
+- The runner prints per-call progress (overall count, question index, provider, item_id). This is useful for long runs and confirms forward progress.
+
 How to choose:
 
 - Use `--dry-run` when you only want to validate wiring, paths, and output files.
@@ -93,6 +96,20 @@ Dry-run (no API calls):
 
 ```powershell
 python src\run_eval.py --dry-run
+```
+
+Run judge scoring separately (no regeneration):
+
+1) First run generation (no judge):
+
+```powershell
+python src\run_eval.py --data data\eval_set.csv --providers openai anthropic gemini llama
+```
+
+2) Then run judge-only on the raw JSONL:
+
+```powershell
+python src\run_eval.py --judge-only --judge-mode openai --input-jsonl outputs\raw_results_YYYYMMDD_HHMMSS.jsonl
 ```
 
 ## Dataset Contract

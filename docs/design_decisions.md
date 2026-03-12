@@ -39,6 +39,19 @@ Measure **context-grounded generation behavior** across providers, not retrieval
 - Judge prompts must not include provider/model identifiers (for example `provider`, `model`, `openai`, `anthropic`, `gemini`, `llama`).
 - Rationale: prevent provider leakage/bias in judging and keep cross-provider comparison fair.
 
+8. Progress logging during long runs
+- The runner emits per-call progress: overall count, question index, provider, and item_id.
+- Rationale: the full run is long and expensive; incremental feedback reduces anxiety and makes it clear the job is advancing.
+
+9. Sequential judge scoring by default (no batch API)
+- Judge scoring is executed once per answer (up to 28 x 4 = 112 calls), either inline during generation or in a separate `--judge-only` pass.
+- Rationale: the sequential approach is simplest, most reliable across environments, and keeps the code transparent.
+- What was not done: batch/bulk judge submission (e.g., provider batch APIs) was intentionally deferred because it adds operational complexity, asynchronous job handling, and more failure modes for a one-off evaluation.
+
+10. Separation of generation and judging
+- The runner supports a `--judge-only` mode that takes an existing JSONL of raw answers and produces judged outputs.
+- Rationale: keeps generation and scoring decoupled, allowing a single paid run to be judged later without re-running providers.
+
 ## Explicit Non-Goals (Current Phase)
 
 - Building a retrieval stack (chunking, embeddings, vector DB, reranking).

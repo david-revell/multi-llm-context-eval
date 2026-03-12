@@ -187,15 +187,91 @@ def main() -> None:
     parser.add_argument("--context-file", default="artifacts/velutrex_product_information.md")
     parser.add_argument("--judge-mode", choices=["off", "openai"], default="off")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--judge-only", action="store_true")
+    parser.add_argument("--input-jsonl", default="")
+    parser.add_argument("--output-jsonl", default="")
+    parser.add_argument("--output-csv", default="")
     args = parser.parse_args()
 
     load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / '.env', override=True)
     root = Path(__file__).resolve().parents[1]
-    data_path = root / args.data
-    context_path = root / args.context_file
     out_dir = root / "outputs"
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    if args.judge_only:
+        if not args.input_jsonl:
+            raise RuntimeError("--input-jsonl is required when --judge-only is set")
+
+        in_path = Path(args.input_jsonl)
+        if not in_path.is_absolute():
+            in_path = root / in_path
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_jsonl = Path(args.output_jsonl) if args.output_jsonl else out_dir / f"judged_results_{ts}.jsonl"
+        out_csv = Path(args.output_csv) if args.output_csv else out_dir / f"judged_summary_{ts}.csv"
+        if not out_jsonl.is_absolute():
+            out_jsonl = root / out_jsonl
+        if not out_csv.is_absolute():
+            out_csv = root / out_csv
+
+        records = []
+        with in_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                records.append(json.loads(line))
+
+        total = len(records)
+        with out_jsonl.open("w", encoding="utf-8") as jf:
+            for idx, rec in enumerate(records, start=1):
+                err = rec.get("error", "")
+                answer = rec.get("answer", "")
+                judge = {"judge_score": "", "judge_reason": "", "judge_error": ""}
+                if not err and answer and args.judge_mode == "openai":
+                    try:
+                        judge = judge_with_openai(
+                            question=rec.get("question", ""),
+                            ground_truth=rec.get("ground_truth", ""),
+                            answer=answer,
+                        )
+                    except Exception as e:
+                        judge["judge_error"] = str(e)
+
+                metric = score(answer, rec.get("ground_truth", "")) if not err else {"exact_match": 0, "abstained_not_in_context": 0}
+                rec.update(judge)
+                rec.update(metric)
+                jf.write(json.dumps(rec, ensure_ascii=True) + "\n")
+
+                judge_note = "judge=off" if args.judge_mode == "off" else ("judge=ok" if not judge.get("judge_error") else "judge=err")
+                provider = rec.get("provider", "unknown")
+                item_id = rec.get("item_id", "unknown")
+                print(f"Progress {idx}/{total} | provider={provider} | item_id={item_id} | {judge_note}", flush=True)
+
+        with out_csv.open("w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "item_id",
+                    "failure_mode",
+                    "provider",
+                    "exact_match",
+                    "abstained_not_in_context",
+                    "judge_score",
+                    "judge_error",
+                    "error",
+                ],
+            )
+            writer.writeheader()
+            for r in records:
+                writer.writerow({k: r.get(k, "") for k in writer.fieldnames})
+
+        print(f"Wrote: {out_jsonl}")
+        print(f"Wrote: {out_csv}")
+        return
+
+    data_path = root / args.data
+    context_path = root / args.context_file
     provider_fns = {
         "openai": ask_openai,
         "anthropic": ask_anthropic,
@@ -210,9 +286,12 @@ def main() -> None:
     out_csv = out_dir / f"summary_{ts}.csv"
 
     all_records = []
+    total = len(rows) * len(args.providers)
+    counter = 0
     with out_jsonl.open("w", encoding="utf-8") as jf:
-        for row in rows:
+        for row_idx, row in enumerate(rows, start=1):
             for provider in args.providers:
+                counter += 1
                 prompt = build_prompt(default_context, row["question"])
                 if args.dry_run:
                     answer = f"DRY_RUN_{provider}"
@@ -251,6 +330,11 @@ def main() -> None:
                 }
                 all_records.append(rec)
                 jf.write(json.dumps(rec, ensure_ascii=True) + "\n")
+                judge_note = "judge=off" if args.judge_mode == "off" else ("judge=ok" if not judge.get("judge_error") else "judge=err")
+                print(
+                    f"Progress {counter}/{total} | q {row_idx}/{len(rows)} | provider={provider} | item_id={row['item_id']} | {judge_note}",
+                    flush=True,
+                )
 
     with out_csv.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
