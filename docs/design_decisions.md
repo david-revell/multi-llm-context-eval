@@ -57,6 +57,11 @@ Measure **context-grounded generation behavior** across providers, not retrieval
 - Rationale: Gemini free-tier RPM/RPD limits are tight and caused partial failures in a full run; throttling Gemini reduces 429s without slowing all providers. RPM = requests per minute; a 12s sleep yields ~5 RPM (60 / 12).
 - What was not done: a full adaptive retry/backoff layer across all providers (overkill for this eval-first scaffold).
 
+12. Stable published outputs, timestamped local runs
+- Timestamped files in `outputs/` are treated as local operational artifacts for reruns, debugging, and provenance.
+- Version control retains only stable final result filenames: `outputs/final_judged_results.jsonl` and `outputs/final_judged_summary.csv`.
+- Rationale: this keeps the repository readable, preserves a clean report target, and avoids committing every intermediate run artifact while still leaving one auditable final evaluation record in git.
+
 ## Explicit Non-Goals (Current Phase)
 
 - Building a retrieval stack (chunking, embeddings, vector DB, reranking).

@@ -9,6 +9,7 @@ This scaffold evaluates one core behavior: can each model answer from provided c
 - Context is injected directly (retrieval is intentionally out of scope).
 - Same prompt template is sent to each provider.
 - Results are written to `outputs/` for later analysis.
+- `outputs/` keeps local timestamped run artifacts, while git only retains the stable final judged files used by the report.
 
 ## Repo Layout
 
@@ -146,6 +147,10 @@ CSV columns:
 - `artifacts/velutrex_product_information.md` is the canonical context injected by `run_eval.py`.
 - `data/eval_set.csv` is the operational CSV used by `run_eval.py`.
 - `data/eval_set_smoke.csv` is a small regression/smoke input for fast sanity checks.
+
+## Outputs Policy
+
+Timestamped files in `outputs/` are local operational artifacts and are not intended for version control. The repository keeps only stable final result files for the completed evaluation: `outputs/final_judged_results.jsonl` and `outputs/final_judged_summary.csv`. Those committed files are the report-facing artifacts; the timestamped source runs remain available locally for provenance and reruns.
 
 ## Notes
 
