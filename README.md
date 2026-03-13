@@ -19,6 +19,13 @@ An interactive static viewer for the final judged run is included at `docs/eval_
 - It is a snapshot of `outputs/final_judged_results.jsonl`, not a live dashboard.
 - This is the clearest way to inspect the evaluation results without reading the raw JSONL directly.
 
+## Report
+
+The final write-up is available in two formats:
+
+- `docs/multi_model_context_evaluation_report.md`: canonical report source in Markdown
+- `docs/multi_model_context_evaluation_report.pdf`: polished shareable export
+
 ## Repo Layout
 
 - `artifacts/`: source evaluation assets (Velutrex corpus and question set)
