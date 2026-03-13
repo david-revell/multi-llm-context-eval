@@ -1,7 +1,5 @@
 # Multi-LLM Context Evaluation Report
 
-Version: v6
-
 ---
 
 ## Problem Statement
