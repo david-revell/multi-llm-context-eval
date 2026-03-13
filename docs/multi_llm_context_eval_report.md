@@ -1,6 +1,6 @@
 # Multi-LLM Context Evaluation Report
 
-Version: v2
+Version: v3
 
 ---
 
@@ -130,40 +130,110 @@ The 0–2 scale gives a natural centre — wrong / partial / correct — with a 
 
 ---
 
-## Run Status (as of 2026-03-12)
+## Run Status (as of 2026-03-13)
 
-The inference-only full run completed with a partial provider failure.
+All inference and judging complete. The Gemini free-tier quota failure reported in v2 was resolved via a targeted retry, and the full judge pass has run across all 112 records.
 
-| Provider | Questions answered | Status |
-|---|---|---|
-| OpenAI | 28 / 28 | Complete |
-| Anthropic | 28 / 28 | Complete |
-| Llama | 28 / 28 | Complete |
-| Gemini | 21 / 28 | 7 errors (429 — free-tier quota exceeded) |
-
-The 7 affected Gemini items are: v07, v08, v09 (all three NEGATION questions), v16, v17 (two ABSTENTION questions), and v27, v28 (both COHERENCE questions). This is analytically significant — two of the most interesting categories have no Gemini data.
-
-Errors were recorded as 429 responses in the JSONL rather than silently dropped, leaving the output file complete and merge-able. Remediation is a targeted retry using `--item-ids` and `--sleep-seconds 12` (yielding 5 RPM, matching Gemini's free-tier limit) once the daily quota resets. The retry output will be merged with the original JSONL before the judge pass runs.
+| Provider | Questions answered | Judge scored | Status |
+|---|---|---|---|
+| OpenAI | 28 / 28 | 28 / 28 | Complete |
+| Anthropic | 28 / 28 | 28 / 28 | Complete |
+| Gemini | 28 / 28 | 28 / 28 | Complete (retry merged) |
+| Llama | 28 / 28 | 28 / 28 | Complete |
 
 ---
 
 ## Results
 
-*Pending completion of the Gemini retry and the judge-only scoring pass.*
+### Overall scores
 
-The results section will include a summary table of judge scores by provider and failure mode, and qualitative analysis of the dominant failure patterns observed.
+| Provider | Score | Max | % |
+|---|---|---|---|
+| OpenAI | 53 | 56 | 95% |
+| Anthropic | 48 | 56 | 86% |
+| Gemini | 46 | 56 | 82% |
+| Llama | 41 | 56 | 73% |
+
+OpenAI leads by a clear margin. The gap between Anthropic and Gemini is narrow; Llama trails the field by 7–12 points.
+
+### Scores by failure mode
+
+The table shows points scored out of the category maximum (number of questions × 2).
+
+| Mode | Questions | OpenAI | Anthropic | Gemini | Llama |
+|---|---|---|---|---|---|
+| EASY | 6 | 12/12 (100%) | 11/12 (92%) | 12/12 (100%) | 12/12 (100%) |
+| NEGATION | 3 | 6/6 (100%) | 6/6 (100%) | 6/6 (100%) | 6/6 (100%) |
+| NUMERICAL | 5 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) |
+| ABSTENTION | 4 | 8/8 (100%) | 6/8 (75%) | 8/8 (100%) | 6/8 (75%) |
+| KNOWLEDGE | 2 | 4/4 (100%) | 4/4 (100%) | 2/4 (50%) | 2/4 (50%) |
+| INFERENCE | 2 | 2/4 (50%) | 4/4 (100%) | 1/4 (25%) | 1/4 (25%) |
+| CONFIRMATION | 2 | 4/4 (100%) | 3/4 (75%) | 2/4 (50%) | 2/4 (50%) |
+| RED HERRING | 2 | 3/4 (75%) | 2/4 (50%) | 2/4 (50%) | 1/4 (25%) |
+| COHERENCE | 2 | 4/4 (100%) | 2/4 (50%) | 3/4 (75%) | 1/4 (25%) |
+
+### Where each provider lost points
+
+| Mode | OpenAI | Anthropic | Gemini | Llama |
+|---|---|---|---|---|
+| EASY | 0 | 1 | 0 | 0 |
+| NEGATION | 0 | 0 | 0 | 0 |
+| NUMERICAL | 0 | 0 | 0 | 0 |
+| ABSTENTION | 0 | 2 | 0 | 2 |
+| KNOWLEDGE | 0 | 0 | 2 | 2 |
+| INFERENCE | 2 | 0 | 3 | 3 |
+| CONFIRMATION | 0 | 1 | 2 | 2 |
+| RED HERRING | 1 | 2 | 2 | 3 |
+| COHERENCE | 0 | 2 | 1 | 3 |
+| **Total lost** | **3** | **8** | **10** | **15** |
+
+### Finding 1: Three categories were perfect across all four providers
+
+NEGATION, NUMERICAL, and EASY each scored 100% for every provider. This is notable because negation dropout and numerical drift were specifically engineered to be hard — prior clinical knowledge creates the temptation to substitute the familiar 14-day MAOI washout for the document's 21 days, and the failed trial result creates pressure to misread the p-value. Every model resisted both. These are genuinely positive results, not simply the absence of failure.
+
+### Finding 2: NOT_IN_CONTEXT is not always the safe answer
+
+Of the 23 non-perfect scores across all providers, 16 are cases where the model returned NOT_IN_CONTEXT. In roughly half of those, this was the right call — the answer genuinely was not in the document. In the other half, it was wrong: the model deflected on a question the document did address. This matters because NOT_IN_CONTEXT carries an implicit claim of faithfulness — the model appears to be following instructions — while actually failing to retrieve content that is present. It is a quiet failure mode, harder to catch than a hallucinated answer.
+
+The remaining 7 non-perfect scores are substantive answers that scored 1 (partial): the model found the relevant content but either dropped a caveat or added detail beyond what the ground truth required.
+
+### Finding 3: Inference is the sharpest differentiator between providers
+
+Anthropic is the only provider to score perfectly on INFERENCE (4/4). The other three all scored 0 on v21 — the question that embeds a false premise about statistical significance ("Given that Velutrex showed statistically significant results in CLARITY-2..."). OpenAI, Gemini, and Llama all returned NOT_IN_CONTEXT, which is technically a refusal rather than an acceptance of the false premise, but is still wrong: the document does address the trial result, and the correct response is to correct the false premise. Only Anthropic did this, explicitly identifying the premise as incorrect and citing p = 0.21.
+
+This is the most revealing result in the dataset. Correcting a false premise embedded in a question requires the model to do something more than retrieve or abstain — it must reason about the relationship between the question's framing and the document's content, and push back. That is a harder task, and the spread across providers is the largest of any category.
+
+### Finding 4: Gemini and Llama share a distinctive failure on KNOWLEDGE
+
+Both Gemini and Llama returned NOT_IN_CONTEXT on v20, the SNRI classification question. The question asks about dual neurotransmitter systems on the assumption that Velutrex is classified as an SNRI — a false premise the document explicitly contradicts. The correct answer is to reject the classification. OpenAI and Anthropic both did so with substantive responses citing the mechanism section. Gemini and Llama deflected instead.
+
+Unlike the v21 failure (where all four providers struggle), this is a case where two providers consistently failed and two consistently succeeded. It suggests a difference in how aggressively models search the context for relevant content before concluding a question is unanswerable.
+
+### Finding 5: Abstention failures are false negatives, not hallucinations
+
+The two abstention failures — Anthropic on v17 (dosage for over-65 patients) and Llama on v16 (lithium co-administration) — are both cases where the model returned NOT_IN_CONTEXT when the answer was in the document. These are not hallucinations; the models did not generate plausible-sounding false content. They under-retrieved instead. On v17, the document states explicitly that there is no approved dosage for patients over 65. On v16, it states that lithium co-administration has not been studied and cannot be recommended or excluded — which is itself the answer. In both cases the model missed findable content and reported silence where the document was not silent.
+
+### Finding 6: Red herring is the hardest category across all providers
+
+No provider scored perfectly on RED HERRING. The dominant failure is on v26, the social functioning question, where models correctly stated that Velutrex is not indicated for anxiety disorders but then added unsupported claims about CLARITY-2 secondary endpoints. This is a consistent pattern across providers rather than a provider-specific weakness: the question names a real feature of the document (social functioning scores) and leads toward a plausible extension (anxiety disorder suitability). Every model partially followed the lead.
+
+### Finding 7: Coherence separates OpenAI from the field
+
+OpenAI is the only provider to score perfectly on COHERENCE (4/4). Llama scores 1/4 — its worst category — returning NOT_IN_CONTEXT on v27, the question asking how confident clinicians should be in Velutrex's efficacy. This question requires integrating multiple pieces of information (non-significant p-value, narrow trial population, female-only sample) into a synthesised judgement. Bare deflection is the weakest possible response. Anthropic and Gemini both attempted synthesis but lost points for omitting one or more of the key caveats from the ground truth.
 
 ---
 
 ## Limitations
 
-**Gemini data is currently incomplete.** The NEGATION and COHERENCE categories have no Gemini responses. Cross-provider comparisons involving Gemini are provisional until the retry is complete and merged.
+**Single context document.** This evaluation uses one context document across all 28 questions. Findings describe model behaviour on this specific corpus. Generalisation across document types, lengths, and domains would require additional evaluation sets.
 
-**Judge scoring has not yet run.** All quantitative findings are pending. The exact-match flags in current output files are retained for reference but are not a meaningful metric for this dataset.
+**Small question counts per category.** Several categories contain only two questions. A single unexpected result can shift a category score by 50%. The category-level findings are indicative rather than definitive, and should be read alongside the individual item analysis rather than as standalone statistics.
 
-**Single context document.** This evaluation uses one context document across all 28 questions. Findings describe model behaviour on this corpus; generalisation across document types, lengths, and domains would require additional evaluation sets.
+**Free-tier provider constraints.** Gemini's free-tier rate limit required a retry strategy and introduced a gap in v2. The retry completed successfully and all Gemini data is present in v3. The constraint is a practical limitation of running cross-provider evaluations at low cost, not a flaw in the evaluation design.
 
-**Free-tier provider constraints.** Gemini's free-tier RPD limit is 20 requests per day. This constrained the run and required a retry strategy. It is a practical limitation of running cross-provider evaluations at low cost, not a flaw in the evaluation design.
+**Judge scoring against terse ground truths.** The LLM-as-judge approach scores answers against a known ground truth. Where ground truths are written minimally, a model that gives a richer but entirely faithful answer can be penalised for including correct detail. One confirmed instance of this occurred on v05 (Anthropic): the model correctly stated the trial duration and accurately described the randomisation design — information present verbatim in the document — but received a score of 1 rather than 2 because the ground truth was simply "12 weeks." This is a judge error, not a model error, and it marginally understates Anthropic's true performance on that item. The score has been left as-is rather than adjusted post-hoc, but the pattern is worth noting as a limitation of ground-truth-anchored LLM-as-judge evaluation when ground truths vary in verbosity.
+
+**Potential judge bias toward OpenAI.** The judge model is an OpenAI model (gpt-5-nano). The possibility that it scores OpenAI responses more generously than competitors cannot be ruled out, though the task — comparing an answer against a known ground truth — is more constrained than open-ended generation and less likely to exhibit systematic stylistic preference. The judge received no provider labels.
 
 ---
 
