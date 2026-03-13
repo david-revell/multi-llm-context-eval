@@ -1,7 +1,5 @@
 # Multi-LLM Context Evaluation Report
 
----
-
 ## Problem Statement
 
 Large language models are increasingly deployed in contexts where their outputs must be grounded in a provided document — retrieval-augmented generation systems, clinical decision support tools, legal summarisation pipelines, and similar applications where faithfulness to source material is not optional. Yet models routinely fail in characteristic ways: they drop negations, substitute familiar numbers for the ones actually stated, hallucinate plausible answers when the document is silent, or override the context with prior knowledge when the two conflict.
