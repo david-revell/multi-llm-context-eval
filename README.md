@@ -11,12 +11,21 @@ This scaffold evaluates one core behavior: can each model answer from provided c
 - Results are written to `outputs/` for later analysis.
 - `outputs/` keeps local timestamped run artifacts, while git only retains the stable final judged files used by the report.
 
+## Interactive Viewer
+
+An interactive static viewer for the final judged run is included at `docs/eval_viewer.html`.
+
+- It presents every question, ground truth, provider answer, and judge rationale in one page.
+- It is a snapshot of `outputs/final_judged_results.jsonl`, not a live dashboard.
+- This is the clearest way to inspect the evaluation results without reading the raw JSONL directly.
+
 ## Repo Layout
 
 - `artifacts/`: source evaluation assets (Velutrex corpus and question set)
 - `artifacts/velutrex_product_information.md`: canonical runtime context loaded once per run
 - `data/eval_set.csv`: full operational evaluation dataset (28 Velutrex items)
 - `data/eval_set_smoke.csv`: lightweight 3-row smoke dataset for quick checks
+- `docs/eval_viewer.html`: interactive viewer for the final judged run
 - `src/run_eval.py`: minimal runner
 - `.env.example`: required keys/models
 - `requirements.txt`: SDK dependencies

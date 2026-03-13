@@ -145,6 +145,8 @@ All inference and judging are complete. The final dataset contains 112 judged re
 
 ## Results
 
+An interactive companion viewer for the final judged run is included in the repository at `docs/eval_viewer.html`. It provides a static, question-level view of the completed judged results file and is intended as a convenient inspection artifact rather than a live dashboard.
+
 ### Overall scores
 
 | Provider | Score | Max | % |

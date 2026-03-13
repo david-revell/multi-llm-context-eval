@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Velutrex Eval Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --border: #2a2d35;
+    --accent: #e8c547;
+    --accent2: #5b9cf6;
+    --text: #d4d8e1;
+    --muted: #6b7280;
+    --score0: #ef4444;
+    --score1: #f59e0b;
+    --score2: #22c55e;
+    --easy: #6366f1;
+    --negation: #ec4899;
+    --numerical: #14b8a6;
+    --abstention: #f97316;
+    --knowledge: #8b5cf6;
+    --inference: #06b6d4;
+    --confirmation: #e11d48;
+    --red_herring: #84cc16;
+    --coherence: #f59e0b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  header span {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .snapshot-note {
+    padding: 12px 32px;
+    border-bottom: 1px solid var(--border);
+    background: #12141a;
+    color: #a8b0bf;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .snapshot-note strong {
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-right: 8px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-group {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .filter-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-right: 2px;
+  }
+
+  button.pill {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  button.pill:hover { border-color: #444; color: var(--text); }
+  button.pill.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  button.pill.score-active-0 { background: var(--score0); color: #fff; border-color: var(--score0); }
+  button.pill.score-active-1 { background: var(--score1); color: #000; border-color: var(--score1); }
+  button.pill.score-active-2 { background: var(--score2); color: #000; border-color: var(--score2); }
+
+  .sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+  .results-header {
+    padding: 10px 32px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .grid {
+    padding: 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .question-block {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .q-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+    transition: background 0.15s;
+  }
+  .q-header:hover { background: #1c1e24; }
+  .q-header.open { border-bottom-color: var(--border); }
+
+  .q-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 32px;
+  }
+
+  .mode-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .q-text {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .score-dots {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .score-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+  }
+
+  .chevron {
+    color: var(--muted);
+    font-size: 12px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .open .chevron { transform: rotate(90deg); }
+
+  .q-body {
+    display: none;
+    padding: 16px;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .q-body.visible { display: flex; }
+
+  .ground-truth {
+    font-size: 12px;
+    color: #9ca3af;
+    padding: 10px 12px;
+    background: #12141a;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.5;
+  }
+  .ground-truth strong {
+    display: block;
+    font-size: 10px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+
+  .provider-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 10px;
+    align-items: start;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #12141a;
+  }
+
+  .provider-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .provider-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .score-badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    text-align: center;
+    line-height: 26px;
+  }
+  .s0 { background: rgba(239,68,68,0.2); color: var(--score0); border: 1px solid rgba(239,68,68,0.3); }
+  .s1 { background: rgba(245,158,11,0.2); color: var(--score1); border: 1px solid rgba(245,158,11,0.3); }
+  .s2 { background: rgba(34,197,94,0.15); color: var(--score2); border: 1px solid rgba(34,197,94,0.25); }
+
+  .provider-answer {
+    flex: 1;
+  }
+  .answer-text {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .nic { color: var(--muted); font-style: italic; }
+  .judge-reason {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.4;
+    border-top: 1px solid var(--border);
+    padding-top: 6px;
+  }
+  .judge-reason strong { color: #9ca3af; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Velutrex Eval - Judged Results</h1>
+  <span>112 records - 4 providers - 28 questions - 9 failure modes</span>
+</header>
+
+<div class="snapshot-note">
+  <strong>Snapshot</strong>
+  Static viewer for <code>outputs/final_judged_results.jsonl</code>. This page reflects the completed judged run captured in the repository and is not a live dashboard.
+</div>
+
+<div class="controls">
+  <span class="filter-label">Provider</span>
+  <div class="filter-group" id="prov-filters"></div>
+  <div class="sep"></div>
+  <span class="filter-label">Mode</span>
+  <div class="filter-group" id="mode-filters"></div>
+  <div class="sep"></div>
+  <span class="filter-label">Score</span>
+  <div class="filter-group" id="score-filters"></div>
+  <div class="sep"></div>
+  <button class="pill" id="reset-btn">Reset all</button>
+</div>
+
+<div class="results-header" id="results-count"></div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const RAW = [{"item_id": "v01", "failure_mode": "easy", "provider": "openai", "question": "What is the recommended starting dose of Velutrex?", "ground_truth": "40mg once daily, taken with food.", "answer": "40 mg once daily, taken with food.", "error": "", "judge_score": 2, "judge_reason": "Matches the ground truth exactly: 40 mg once daily with food.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v01", "failure_mode": "easy", "provider": "anthropic", "question": "What is the recommended starting dose of Velutrex?", "ground_truth": "40mg once daily, taken with food.", "answer": "According to the context, the recommended starting dose of Velutrex is **40mg once daily, taken with food**.", "error": "", "judge_score": 2, "judge_reason": "The answer matches the ground-truth dose of 40 mg once daily with food.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v01", "failure_mode": "easy", "provider": "gemini", "question": "What is the recommended starting dose of Velutrex?", "ground_truth": "40mg once daily, taken with food.", "answer": "The recommended starting dose is 40mg once daily, taken with food.", "error": "", "judge_score": 2, "judge_reason": "It matches the ground truth: 40 mg once daily with food.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v01", "failure_mode": "easy", "provider": "llama", "question": "What is the recommended starting dose of Velutrex?", "ground_truth": "40mg once daily, taken with food.", "answer": "The recommended starting dose is 40mg once daily, taken with food.", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground truth (40 mg once daily with food).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v02", "failure_mode": "easy", "provider": "openai", "question": "What is the full name of the active ingredient in Velutrex?", "ground_truth": "Velutraline hydrochloride.", "answer": "velutraline hydrochloride", "error": "", "judge_score": 2, "judge_reason": "The answer matches the ground-truth active ingredient name Velutraline hydrochloride (case-insensitive).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v02", "failure_mode": "easy", "provider": "anthropic", "question": "What is the full name of the active ingredient in Velutrex?", "ground_truth": "Velutraline hydrochloride.", "answer": "The full name of the active ingredient in Velutrex is **velutraline hydrochloride**.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly identifies the active ingredient as velutraline hydrochloride, matching the ground truth (capitalization not material).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v02", "failure_mode": "easy", "provider": "gemini", "question": "What is the full name of the active ingredient in Velutrex?", "ground_truth": "Velutraline hydrochloride.", "answer": "velutraline hydrochloride", "error": "", "judge_score": 2, "judge_reason": "The answer correctly gives Velutraline hydrochloride, matching the ground truth (case-insensitive).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v02", "failure_mode": "easy", "provider": "llama", "question": "What is the full name of the active ingredient in Velutrex?", "ground_truth": "Velutraline hydrochloride.", "answer": "Velutraline hydrochloride.", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground truth: Velutraline hydrochloride.", "judge_error": "", "exact_match": 1, "abstained_not_in_context": 0}, {"item_id": "v03", "failure_mode": "easy", "provider": "openai", "question": "What condition is Velutrex indicated for?", "ground_truth": "Moderate to severe recurrent depressive disorder (RDD) in adults aged 18 to 65.", "answer": "The management of moderate to severe episodes of recurrent depressive disorder (RDD) in adults aged 18 to 65.", "error": "", "judge_score": 2, "judge_reason": "It states the same indication (moderate to severe recurrent depressive disorder in adults 18\u201365), aligning with the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v03", "failure_mode": "easy", "provider": "anthropic", "question": "What condition is Velutrex indicated for?", "ground_truth": "Moderate to severe recurrent depressive disorder (RDD) in adults aged 18 to 65.", "answer": "Velutrex (velutraline hydrochloride) is indicated for the management of moderate to severe episodes of recurrent depressive disorder (RDD) in adults aged 18 to 65.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states Velutrex is indicated for moderate to severe recurrent depressive disorder in adults aged 18\u201365, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v03", "failure_mode": "easy", "provider": "gemini", "question": "What condition is Velutrex indicated for?", "ground_truth": "Moderate to severe recurrent depressive disorder (RDD) in adults aged 18 to 65.", "answer": "Velutrex (velutraline hydrochloride) is indicated for the management of moderate to severe episodes of recurrent depressive disorder (RDD) in adults aged 18 to 65.", "error": "", "judge_score": 2, "judge_reason": "It correctly states Velutrex is indicated for moderate to severe recurrent depressive disorder in adults aged 18 to 65.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v03", "failure_mode": "easy", "provider": "llama", "question": "What condition is Velutrex indicated for?", "ground_truth": "Moderate to severe recurrent depressive disorder (RDD) in adults aged 18 to 65.", "answer": "Velutrex (velutraline hydrochloride) is indicated for the management of moderate to severe episodes of recurrent depressive disorder (RDD) in adults aged 18 to 65.", "error": "", "judge_score": 2, "judge_reason": "The answer accurately states indication for moderate to severe recurrent depressive disorder in adults 18\u201365 without adding unsupported details.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v04", "failure_mode": "easy", "provider": "openai", "question": "How many patients were enrolled in the CLARITY-2 trial?", "ground_truth": "412 adult patients.", "answer": "412 adult patients.", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground truth, stating 412 adult patients.", "judge_error": "", "exact_match": 1, "abstained_not_in_context": 0}, {"item_id": "v04", "failure_mode": "easy", "provider": "anthropic", "question": "How many patients were enrolled in the CLARITY-2 trial?", "ground_truth": "412 adult patients.", "answer": "According to the context, 412 adult patients with confirmed RDD were enrolled in the CLARITY-2 trial across 14 clinical sites in Western Europe.", "error": "", "judge_score": 2, "judge_reason": "It correctly states the enrollment number (412 adult patients), matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v04", "failure_mode": "easy", "provider": "gemini", "question": "How many patients were enrolled in the CLARITY-2 trial?", "ground_truth": "412 adult patients.", "answer": "412 adult patients.", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground truth: 412 adult patients.", "judge_error": "", "exact_match": 1, "abstained_not_in_context": 0}, {"item_id": "v04", "failure_mode": "easy", "provider": "llama", "question": "How many patients were enrolled in the CLARITY-2 trial?", "ground_truth": "412 adult patients.", "answer": "412 adult patients.", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground truth (412 adult patients).", "judge_error": "", "exact_match": 1, "abstained_not_in_context": 0}, {"item_id": "v05", "failure_mode": "easy", "provider": "openai", "question": "How long was the CLARITY-2 trial?", "ground_truth": "12 weeks.", "answer": "12 weeks.", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground-truth duration (12 weeks).", "judge_error": "", "exact_match": 1, "abstained_not_in_context": 0}, {"item_id": "v05", "failure_mode": "easy", "provider": "anthropic", "question": "How long was the CLARITY-2 trial?", "ground_truth": "12 weeks.", "answer": "The CLARITY-2 trial lasted 12 weeks. Patients were randomised to velutraline 40mg daily or placebo for this 12-week duration.", "error": "", "judge_score": 1, "judge_reason": "Correct duration stated, but includes extra details (drug name/dose/randomization) not present in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v05", "failure_mode": "easy", "provider": "gemini", "question": "How long was the CLARITY-2 trial?", "ground_truth": "12 weeks.", "answer": "The CLARITY-2 trial lasted for 12 weeks.", "error": "", "judge_score": 2, "judge_reason": "The answer states the duration as 12 weeks, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v05", "failure_mode": "easy", "provider": "llama", "question": "How long was the CLARITY-2 trial?", "ground_truth": "12 weeks.", "answer": "12 weeks.", "error": "", "judge_score": 2, "judge_reason": "The answer aligns with the ground truth of 12 weeks.", "judge_error": "", "exact_match": 1, "abstained_not_in_context": 0}, {"item_id": "v06", "failure_mode": "easy", "provider": "openai", "question": "What were the two most commonly reported adverse effects in the velutraline group?", "ground_truth": "Nausea (18%) and insomnia (14%).", "answer": "Nausea and insomnia.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly identifies the two most common adverse effects (nausea and insomnia) as reported in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v06", "failure_mode": "easy", "provider": "anthropic", "question": "What were the two most commonly reported adverse effects in the velutraline group?", "ground_truth": "Nausea (18%) and insomnia (14%).", "answer": "Based on the context provided, the two most commonly reported adverse effects in the velutraline group were:\n\n1. **Nausea** - 18% of velutraline-treated patients\n2. **Insomnia** - 14% of velutraline-treated patients", "error": "", "judge_score": 2, "judge_reason": "Matches ground truth: nausea 18% and insomnia 14% reported in the velutraline group.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v06", "failure_mode": "easy", "provider": "gemini", "question": "What were the two most commonly reported adverse effects in the velutraline group?", "ground_truth": "Nausea (18%) and insomnia (14%).", "answer": "The two most commonly reported adverse effects in the velutraline group were Nausea (18%) and Insomnia (14%).", "error": "", "judge_score": 2, "judge_reason": "The answer correctly lists nausea (18%) and insomnia (14%) exactly as reported in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v06", "failure_mode": "easy", "provider": "llama", "question": "What were the two most commonly reported adverse effects in the velutraline group?", "ground_truth": "Nausea (18%) and insomnia (14%).", "answer": "The two most commonly reported adverse effects in the velutraline group were nausea (18%) and insomnia (14%).", "error": "", "judge_score": 2, "judge_reason": "The answer precisely states nausea (18%) and insomnia (14%) as the two most common adverse effects, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v07", "failure_mode": "negation", "provider": "openai", "question": "Does Velutrex inhibit serotonin reuptake?", "ground_truth": "No. It does not inhibit serotonin reuptake at therapeutic doses.", "answer": "No. Velutrex selectively inhibits norepinephrine reuptake and does not inhibit serotonin reuptake at therapeutic doses.", "error": "", "judge_score": 2, "judge_reason": "It accurately states no serotonin reuptake inhibition at therapeutic doses, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v07", "failure_mode": "negation", "provider": "anthropic", "question": "Does Velutrex inhibit serotonin reuptake?", "ground_truth": "No. It does not inhibit serotonin reuptake at therapeutic doses.", "answer": "No. According to the context, velutraline hydrochloride does not inhibit serotonin reuptake at therapeutic doses. Section 2 (Mechanism of Action) explicitly states: \"It does not inhibit serotonin reuptake at therapeutic doses and should not be classified alongside dual-action agents such as venlafaxine or duloxetine. Its primary action is adrenergic rather than serotonergic.\"", "error": "", "judge_score": 2, "judge_reason": "It faithfully states no serotonin reuptake inhibition at therapeutic doses, aligning with the ground truth (naming variation is incidental).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v07", "failure_mode": "negation", "provider": "gemini", "question": "Does Velutrex inhibit serotonin reuptake?", "ground_truth": "No. It does not inhibit serotonin reuptake at therapeutic doses.", "answer": "No, Velutrex does not inhibit serotonin reuptake at therapeutic doses.", "error": "", "judge_score": 2, "judge_reason": "The answer accurately states that Velutrex does not inhibit serotonin reuptake at therapeutic doses.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v07", "failure_mode": "negation", "provider": "llama", "question": "Does Velutrex inhibit serotonin reuptake?", "ground_truth": "No. It does not inhibit serotonin reuptake at therapeutic doses.", "answer": "No, Velutrex (velutraline hydrochloride) does not inhibit serotonin reuptake at therapeutic doses.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states that Velutrex does not inhibit serotonin reuptake at therapeutic doses.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v08", "failure_mode": "negation", "provider": "openai", "question": "Is Velutrex indicated for anxiety disorders?", "ground_truth": "No. It is not indicated for anxiety disorders.", "answer": "No. Velutrex is not indicated for anxiety disorders.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states that Velutrex is not indicated for anxiety disorders.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v08", "failure_mode": "negation", "provider": "anthropic", "question": "Is Velutrex indicated for anxiety disorders?", "ground_truth": "No. It is not indicated for anxiety disorders.", "answer": "No. According to the context, Velutrex (velutraline hydrochloride) is **not** indicated for the treatment of anxiety disorders. \n\nSection 1 (Indication) explicitly states: \"It is not indicated for the treatment of bipolar depression, anxiety disorders, or any condition in paediatric populations.\"", "error": "", "judge_score": 2, "judge_reason": "Statement aligns with ground truth, indicating Velutrex is not indicated for anxiety disorders.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v08", "failure_mode": "negation", "provider": "gemini", "question": "Is Velutrex indicated for anxiety disorders?", "ground_truth": "No. It is not indicated for anxiety disorders.", "answer": "No, Velutrex is not indicated for anxiety disorders.", "error": "", "judge_score": 2, "judge_reason": "The answer accurately states Velutrex is not indicated for anxiety disorders, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v08", "failure_mode": "negation", "provider": "llama", "question": "Is Velutrex indicated for anxiety disorders?", "ground_truth": "No. It is not indicated for anxiety disorders.", "answer": "No, Velutrex is not indicated for the treatment of anxiety disorders.", "error": "", "judge_score": 2, "judge_reason": "The answer faithfully states Velutrex is not indicated for anxiety disorders, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v09", "failure_mode": "negation", "provider": "openai", "question": "Does Velutrex interact with statins?", "ground_truth": "No. The document states it does not interact with statins.", "answer": "No. Velutrex does not interact with statins.", "error": "", "judge_score": 2, "judge_reason": "It accurately reflects the ground truth that Velutrex does not interact with statins.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v09", "failure_mode": "negation", "provider": "anthropic", "question": "Does Velutrex interact with statins?", "ground_truth": "No. The document states it does not interact with statins.", "answer": "No, Velutrex does not interact with statins. According to the context, \"Velutrex does not interact with statins, beta-blockers, or standard antihypertensive agents.\"", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states Velutrex does not interact with statins, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v09", "failure_mode": "negation", "provider": "gemini", "question": "Does Velutrex interact with statins?", "ground_truth": "No. The document states it does not interact with statins.", "answer": "Velutrex does not interact with statins.", "error": "", "judge_score": 2, "judge_reason": "It accurately reflects the ground truth that Velutrex does not interact with statins.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v09", "failure_mode": "negation", "provider": "llama", "question": "Does Velutrex interact with statins?", "ground_truth": "No. The document states it does not interact with statins.", "answer": "No, Velutrex does not interact with statins.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states there is no interaction with statins, aligning with the document.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v10", "failure_mode": "numerical", "provider": "openai", "question": "What percentage of velutraline-treated patients achieved the primary endpoint in CLARITY-2?", "ground_truth": "34%.", "answer": "34%", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground-truth value (34%) for the primary endpoint.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v10", "failure_mode": "numerical", "provider": "anthropic", "question": "What percentage of velutraline-treated patients achieved the primary endpoint in CLARITY-2?", "ground_truth": "34%.", "answer": "According to the context, 34% of velutraline-treated patients achieved the primary endpoint in CLARITY-2 (a reduction of \u226550% from baseline on the Montgomery-Asberg Depression Rating Scale).", "error": "", "judge_score": 2, "judge_reason": "It faithfully reports 34% achieving the primary endpoint in CLARITY-2, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v10", "failure_mode": "numerical", "provider": "gemini", "question": "What percentage of velutraline-treated patients achieved the primary endpoint in CLARITY-2?", "ground_truth": "34%.", "answer": "34%", "error": "", "judge_score": 2, "judge_reason": "It exactly matches the ground-truth percentage (34%).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v10", "failure_mode": "numerical", "provider": "llama", "question": "What percentage of velutraline-treated patients achieved the primary endpoint in CLARITY-2?", "ground_truth": "34%.", "answer": "34%", "error": "", "judge_score": 2, "judge_reason": "The answer matches the ground-truth value of 34% for velutraline-treated patients achieving the primary endpoint in CLARITY-2.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v11", "failure_mode": "numerical", "provider": "openai", "question": "What was the placebo response rate on the primary endpoint?", "ground_truth": "31%.", "answer": "31%", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground-truth placebo response rate of 31%.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v11", "failure_mode": "numerical", "provider": "anthropic", "question": "What was the placebo response rate on the primary endpoint?", "ground_truth": "31%.", "answer": "According to the context, the placebo response rate on the primary endpoint was 31%.\n\nThe primary endpoint was a reduction of \u226550% from baseline on the Montgomery-Asberg Depression Rating Scale (MADRS), which was achieved by 31% of placebo-treated patients in the CLARITY-2 trial.", "error": "", "judge_score": 2, "judge_reason": "Correctly reports the placebo response rate as 31% on the primary endpoint, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v11", "failure_mode": "numerical", "provider": "gemini", "question": "What was the placebo response rate on the primary endpoint?", "ground_truth": "31%.", "answer": "31%", "error": "", "judge_score": 2, "judge_reason": "The provided answer matches the ground-truth placebo response rate (31%).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v11", "failure_mode": "numerical", "provider": "llama", "question": "What was the placebo response rate on the primary endpoint?", "ground_truth": "31%.", "answer": "31%", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground truth, reporting 31%.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v12", "failure_mode": "numerical", "provider": "openai", "question": "How many days must elapse after stopping MAOI therapy before starting Velutrex?", "ground_truth": "21 days.", "answer": "21 days", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground truth of 21 days.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v12", "failure_mode": "numerical", "provider": "anthropic", "question": "How many days must elapse after stopping MAOI therapy before starting Velutrex?", "ground_truth": "21 days.", "answer": "According to the context, 21 days must elapse after discontinuing MAOI therapy before starting Velutrex.\n\nThe document states: \"Current use of monoamine oxidase inhibitors (MAOIs), or within 21 days of discontinuing MAOI therapy\" is a contraindication.", "error": "", "judge_score": 2, "judge_reason": "It correctly states that 21 days must elapse after stopping MAOI therapy before starting Velutrex, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v12", "failure_mode": "numerical", "provider": "gemini", "question": "How many days must elapse after stopping MAOI therapy before starting Velutrex?", "ground_truth": "21 days.", "answer": "21 days", "error": "", "judge_score": 2, "judge_reason": "The answer matches the ground truth washout period (21 days), so it is fully faithful.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v12", "failure_mode": "numerical", "provider": "llama", "question": "How many days must elapse after stopping MAOI therapy before starting Velutrex?", "ground_truth": "21 days.", "answer": "21 days.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states 21 days, matching the ground truth.", "judge_error": "", "exact_match": 1, "abstained_not_in_context": 0}, {"item_id": "v13", "failure_mode": "numerical", "provider": "openai", "question": "What was the rate of discontinuation due to adverse effects in the velutraline group?", "ground_truth": "8%.", "answer": "8%", "error": "", "judge_score": 2, "judge_reason": "The answer exactly matches the ground-truth rate (8%) for discontinuation due to adverse effects in the velutraline group.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v13", "failure_mode": "numerical", "provider": "anthropic", "question": "What was the rate of discontinuation due to adverse effects in the velutraline group?", "ground_truth": "8%.", "answer": "According to the context, the discontinuation rate due to adverse effects in the velutraline group was **8%** (8% of velutraline-treated patients discontinued due to adverse effects).", "error": "", "judge_score": 2, "judge_reason": "The answer states 8%, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v13", "failure_mode": "numerical", "provider": "gemini", "question": "What was the rate of discontinuation due to adverse effects in the velutraline group?", "ground_truth": "8%.", "answer": "Discontinuation due to adverse effects occurred in 8% of velutraline-treated patients.", "error": "", "judge_score": 2, "judge_reason": "The answer states 8% discontinuation due to adverse effects in velutraline-treated patients, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v13", "failure_mode": "numerical", "provider": "llama", "question": "What was the rate of discontinuation due to adverse effects in the velutraline group?", "ground_truth": "8%.", "answer": "8%", "error": "", "judge_score": 2, "judge_reason": "It exactly matches the ground-truth rate of 8%.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v14", "failure_mode": "numerical", "provider": "openai", "question": "After how many weeks can the dose be escalated to 80mg?", "ground_truth": "After a minimum of six weeks.", "answer": "A minimum of six weeks.", "error": "", "judge_score": 2, "judge_reason": "The answer states a minimum of six weeks, matching the ground truth exactly.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v14", "failure_mode": "numerical", "provider": "anthropic", "question": "After how many weeks can the dose be escalated to 80mg?", "ground_truth": "After a minimum of six weeks.", "answer": "According to the context, the dose may be escalated to 80mg once daily after a minimum of **six weeks**, based on clinical response and tolerability.", "error": "", "judge_score": 2, "judge_reason": "The answer states a minimum of six weeks before escalation, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v14", "failure_mode": "numerical", "provider": "gemini", "question": "After how many weeks can the dose be escalated to 80mg?", "ground_truth": "After a minimum of six weeks.", "answer": "Dose escalation to 80mg once daily may be considered after a minimum of six weeks.", "error": "", "judge_score": 2, "judge_reason": "The answer states escalation after a minimum of six weeks, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v14", "failure_mode": "numerical", "provider": "llama", "question": "After how many weeks can the dose be escalated to 80mg?", "ground_truth": "After a minimum of six weeks.", "answer": "6 weeks", "error": "", "judge_score": 2, "judge_reason": "It aligns with the ground truth, indicating escalation after a minimum of six weeks.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v15", "failure_mode": "abstention", "provider": "openai", "question": "What is the recommended dose of Velutrex for patients with renal impairment?", "ground_truth": "Not stated in the document. No renal-impairment dose guidance is provided.", "answer": "There is no dose adjustment guidance for renal impairment; no approved dosage for patients with renal impairment is provided.", "error": "", "judge_score": 2, "judge_reason": "It correctly states there is no renal impairment dosing guidance or approved dosage, aligning with the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v15", "failure_mode": "abstention", "provider": "anthropic", "question": "What is the recommended dose of Velutrex for patients with renal impairment?", "ground_truth": "Not stated in the document. No renal-impairment dose guidance is provided.", "answer": "NOT_IN_CONTEXT\n\nThe document explicitly states in Section 4 (Dosage and Administration): \"No dose adjustment guidance is provided for renal impairment in this document.\" Additionally, Section 7 (Special Populations) notes: \"No data are available for patients with renal impairment.\"", "error": "", "judge_score": 2, "judge_reason": "It correctly reflects that there is no renal impairment dose guidance in the document and thus no recommended dose.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v15", "failure_mode": "abstention", "provider": "gemini", "question": "What is the recommended dose of Velutrex for patients with renal impairment?", "ground_truth": "Not stated in the document. No renal-impairment dose guidance is provided.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 2, "judge_reason": "It correctly reflects that no renal impairment dosing guidance is provided in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v15", "failure_mode": "abstention", "provider": "llama", "question": "What is the recommended dose of Velutrex for patients with renal impairment?", "ground_truth": "Not stated in the document. No renal-impairment dose guidance is provided.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 2, "judge_reason": "Ground truth states there is no renal-impairment dose guidance, which the answer correctly reflects by indicating not in context.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v16", "failure_mode": "abstention", "provider": "openai", "question": "Is it safe to co-administer Velutrex with lithium?", "ground_truth": "Unknown. Co-administration with lithium has not been studied and cannot be recommended or excluded.", "answer": "Not established; co-administration with lithium has not been studied and cannot be recommended or excluded on current evidence.", "error": "", "judge_score": 2, "judge_reason": "Faithful to ground truth; safety is unknown due to lack of studies and cannot be recommended or excluded.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v16", "failure_mode": "abstention", "provider": "anthropic", "question": "Is it safe to co-administer Velutrex with lithium?", "ground_truth": "Unknown. Co-administration with lithium has not been studied and cannot be recommended or excluded.", "answer": "According to the context, co-administration with lithium has not been studied and cannot be recommended or excluded on current evidence.", "error": "", "judge_score": 2, "judge_reason": "Faithful to the ground truth; no studies exist and co-administration cannot be recommended or excluded.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v16", "failure_mode": "abstention", "provider": "gemini", "question": "Is it safe to co-administer Velutrex with lithium?", "ground_truth": "Unknown. Co-administration with lithium has not been studied and cannot be recommended or excluded.", "answer": "Co-administration with lithium has not been studied and cannot be recommended or excluded on current evidence.", "error": "", "judge_score": 2, "judge_reason": "It accurately states that co-administration with lithium is unstudied and cannot be recommended or excluded.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v16", "failure_mode": "abstention", "provider": "llama", "question": "Is it safe to co-administer Velutrex with lithium?", "ground_truth": "Unknown. Co-administration with lithium has not been studied and cannot be recommended or excluded.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 0, "judge_reason": "The answer fails to reflect the ground truth, which states safety is unknown and cannot be recommended or excluded.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v17", "failure_mode": "abstention", "provider": "openai", "question": "What is the recommended dose of Velutrex for patients over 65?", "ground_truth": "Not stated. There is no approved dosage for patients over 65.", "answer": "There is no approved dosage for patients over 65.", "error": "", "judge_score": 2, "judge_reason": "It correctly aligns with the ground truth that there is no approved dosage for patients over 65.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v17", "failure_mode": "abstention", "provider": "anthropic", "question": "What is the recommended dose of Velutrex for patients over 65?", "ground_truth": "Not stated. There is no approved dosage for patients over 65.", "answer": "NOT_IN_CONTEXT\n\nThe document states in Section 4 (Dosage and Administration): \"There is no approved dosage for patients under 18 or over 65.\"", "error": "", "judge_score": 0, "judge_reason": "Ground truth states there is no approved dosage for patients over 65; the answer incorrectly claims the question is not in context.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v17", "failure_mode": "abstention", "provider": "gemini", "question": "What is the recommended dose of Velutrex for patients over 65?", "ground_truth": "Not stated. There is no approved dosage for patients over 65.", "answer": "There is no approved dosage for patients over 65.", "error": "", "judge_score": 2, "judge_reason": "The answer accurately reflects that there is no approved dosage for patients over 65.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v17", "failure_mode": "abstention", "provider": "llama", "question": "What is the recommended dose of Velutrex for patients over 65?", "ground_truth": "Not stated. There is no approved dosage for patients over 65.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 2, "judge_reason": "It accurately reflects the ground truth that no dosage is stated or approved for patients over 65.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v18", "failure_mode": "abstention", "provider": "openai", "question": "How effective is Velutrex in male patients?", "ground_truth": "Unknown. The trial was exclusively female; efficacy and safety in male patients has not been established.", "answer": "Data on Velutrex effectiveness in male patients have not been established; the pivotal trial (CLARITY-2) enrolled only women aged 30\u201355, and no male efficacy data are available.", "error": "", "judge_score": 2, "judge_reason": "It correctly reports that male efficacy data are not established and the trial population consisted only of women, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v18", "failure_mode": "abstention", "provider": "anthropic", "question": "How effective is Velutrex in male patients?", "ground_truth": "Unknown. The trial was exclusively female; efficacy and safety in male patients has not been established.", "answer": "NOT_IN_CONTEXT\n\nThe document states that efficacy and safety in male patients has not been established, as the trial population was exclusively female. Therefore, there is no data provided on how effective Velutrex is in male patients.", "error": "", "judge_score": 2, "judge_reason": "It accurately reflects that efficacy in male patients is unknown/not established due to a female-only trial.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v18", "failure_mode": "abstention", "provider": "gemini", "question": "How effective is Velutrex in male patients?", "ground_truth": "Unknown. The trial was exclusively female; efficacy and safety in male patients has not been established.", "answer": "The trial population was exclusively female; efficacy and safety in male patients has not been established.", "error": "", "judge_score": 2, "judge_reason": "It correctly states the trial was exclusively female and efficacy in male patients has not been established.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v18", "failure_mode": "abstention", "provider": "llama", "question": "How effective is Velutrex in male patients?", "ground_truth": "Unknown. The trial was exclusively female; efficacy and safety in male patients has not been established.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 2, "judge_reason": "It does not claim any efficacy in male patients and aligns with the ground-truth that male efficacy has not been established.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v19", "failure_mode": "knowledge", "provider": "openai", "question": "Is Velutrex a dual-action SNRI like venlafaxine?", "ground_truth": "No. It is not a dual-action SNRI; its action is norepinephrine-only.", "answer": "No. Velutrex selectively inhibits norepinephrine reuptake and does not inhibit serotonin reuptake at therapeutic doses, i.e., it is not a dual-action SNRI. Its action is primarily adrenergic rather than serotonergic.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly identifies Velutrex as a norepinephrine reuptake inhibitor and not a dual-action SNRI, matching the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v19", "failure_mode": "knowledge", "provider": "anthropic", "question": "Is Velutrex a dual-action SNRI like venlafaxine?", "ground_truth": "No. It is not a dual-action SNRI; its action is norepinephrine-only.", "answer": "No. According to the context, Velutrex (velutraline hydrochloride) is **not** a dual-action SNRI like venlafaxine.\n\nThe document states in Section 2 (Mechanism of Action):\n\n\"Velutraline hydrochloride acts as a selective inhibitor of norepinephrine reuptake. It does not inhibit serotonin reuptake at therapeutic doses and should not be classified alongside dual-action agents such as venlafaxine or duloxetine. Its primary action is adrenergic rather than serotonergic.\"\n\nVelutraline is a selective norepinephrine reuptake inhibitor, not a serotonin-norepinephrine reuptake inhibitor (SNRI).", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states Velutrex is a norepinephrine reuptake inhibitor and not a dual-action SNRI.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v19", "failure_mode": "knowledge", "provider": "gemini", "question": "Is Velutrex a dual-action SNRI like venlafaxine?", "ground_truth": "No. It is not a dual-action SNRI; its action is norepinephrine-only.", "answer": "Velutrex (velutraline hydrochloride) does not inhibit serotonin reuptake at therapeutic doses and should not be classified alongside dual-action agents such as venlafaxine. Its primary action is adrenergic rather than serotonergic.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states Velutrex is not a dual-action SNRI and is primarily adrenergic with no serotonin reuptake inhibition at therapeutic doses.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v19", "failure_mode": "knowledge", "provider": "llama", "question": "Is Velutrex a dual-action SNRI like venlafaxine?", "ground_truth": "No. It is not a dual-action SNRI; its action is norepinephrine-only.", "answer": "No, according to the context, Velutrex (velutraline hydrochloride) should not be classified alongside dual-action agents such as venlafaxine or duloxetine, as it does not inhibit serotonin reuptake at therapeutic doses.", "error": "", "judge_score": 2, "judge_reason": "The answer correctly states Velutrex is not a dual-action SNRI and is norepinephrine-only, not inhibiting serotonin reuptake.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v20", "failure_mode": "knowledge", "provider": "openai", "question": "The document categorises Velutrex as an SNRI. Based on this, what dual neurotransmitter systems does it affect?", "ground_truth": "The premise is unsupported. Velutrex acts on norepinephrine only, not a dual serotonin-norepinephrine mechanism.", "answer": "Norepinephrine reuptake only; it does not inhibit serotonin reuptake (it does not affect dual NE/serotonin systems).", "error": "", "judge_score": 2, "judge_reason": "It correctly states NE reuptake only and no serotonin involvement, aligning with the ground truth that Velutrex is not a dual NE/serotonin mechanism.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v20", "failure_mode": "knowledge", "provider": "anthropic", "question": "The document categorises Velutrex as an SNRI. Based on this, what dual neurotransmitter systems does it affect?", "ground_truth": "The premise is unsupported. Velutrex acts on norepinephrine only, not a dual serotonin-norepinephrine mechanism.", "answer": "NOT_IN_CONTEXT\n\nThe document explicitly states that Velutrex should NOT be classified as an SNRI. According to Section 2 (Mechanism of Action): \"It does not inhibit serotonin reuptake at therapeutic doses and should not be classified alongside dual-action agents such as venlafaxine or duloxetine. Its primary action is adrenergic rather than serotonergic.\"", "error": "", "judge_score": 2, "judge_reason": "It accurately states Velutrex is not an SNRI and acts on norepinephrine (adrenergic) rather than serotonin, i.e., no dual serotonin-norepinephrine mechanism.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v20", "failure_mode": "knowledge", "provider": "gemini", "question": "The document categorises Velutrex as an SNRI. Based on this, what dual neurotransmitter systems does it affect?", "ground_truth": "The premise is unsupported. Velutrex acts on norepinephrine only, not a dual serotonin-norepinephrine mechanism.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 0, "judge_reason": "The answer does not address the question and contradicts the ground truth that Velutrex acts on norepinephrine only, not a dual serotonin\u2013norepinephrine mechanism.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v20", "failure_mode": "knowledge", "provider": "llama", "question": "The document categorises Velutrex as an SNRI. Based on this, what dual neurotransmitter systems does it affect?", "ground_truth": "The premise is unsupported. Velutrex acts on norepinephrine only, not a dual serotonin-norepinephrine mechanism.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 0, "judge_reason": "The answer does not address the question and contradicts the ground truth, which states Velutrex acts on norepinephrine only (not a dual SNRI mechanism).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v21", "failure_mode": "inference", "provider": "openai", "question": "Given that Velutrex showed statistically significant results in CLARITY-2, which patient subgroups should be prioritised for treatment?", "ground_truth": "The premise is incorrect. Results were not statistically significant (p=0.21), and no subgroup prioritization is supported.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 0, "judge_reason": "It ignores the ground truth by not stating that results were non-significant and no subgroup prioritization is supported.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v21", "failure_mode": "inference", "provider": "anthropic", "question": "Given that Velutrex showed statistically significant results in CLARITY-2, which patient subgroups should be prioritised for treatment?", "ground_truth": "The premise is incorrect. Results were not statistically significant (p=0.21), and no subgroup prioritization is supported.", "answer": "NOT_IN_CONTEXT\n\nThe context states that the primary endpoint in CLARITY-2 was **not** statistically significant (p = 0.21). Therefore, the premise of your question is incorrect, and the context does not provide guidance on prioritizing patient subgroups for treatment based on statistically significant results.", "error": "", "judge_score": 2, "judge_reason": "It correctly reflects that CLARITY-2 results were not statistically significant (p=0.21) and that no subgroup prioritization is supported.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v21", "failure_mode": "inference", "provider": "gemini", "question": "Given that Velutrex showed statistically significant results in CLARITY-2, which patient subgroups should be prioritised for treatment?", "ground_truth": "The premise is incorrect. Results were not statistically significant (p=0.21), and no subgroup prioritization is supported.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 0, "judge_reason": "The ground truth states results were not significant and no subgroup prioritization is supported, but the answer does not reflect this.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v21", "failure_mode": "inference", "provider": "llama", "question": "Given that Velutrex showed statistically significant results in CLARITY-2, which patient subgroups should be prioritised for treatment?", "ground_truth": "The premise is incorrect. Results were not statistically significant (p=0.21), and no subgroup prioritization is supported.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 0, "judge_reason": "The response does not reflect the ground truth and fails to state that no subgroup prioritization is supported.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v22", "failure_mode": "inference", "provider": "openai", "question": "Since Velutrex does not interact with statins or beta-blockers, can it be assumed safe to combine with all cardiovascular medications?", "ground_truth": "No. Only statins, beta-blockers, and standard antihypertensives are addressed; no blanket cardiovascular safety claim is supported.", "answer": "No. The information only states no interaction with statins, beta-blockers, or standard antihypertensive agents, and notes that co-administration with lithium has not been studied. There is no data confirming safety with all cardiovascular medications, so it cannot be assumed safe to combine with all CV meds.", "error": "", "judge_score": 2, "judge_reason": "It accurately reflects that only specific interactions are addressed and a blanket safety with all cardiovascular meds is not supported.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v22", "failure_mode": "inference", "provider": "anthropic", "question": "Since Velutrex does not interact with statins or beta-blockers, can it be assumed safe to combine with all cardiovascular medications?", "ground_truth": "No. Only statins, beta-blockers, and standard antihypertensives are addressed; no blanket cardiovascular safety claim is supported.", "answer": "NOT_IN_CONTEXT\n\nWhile the context states that Velutrex does not interact with statins, beta-blockers, or standard antihypertensive agents, this does not provide sufficient information to assume safety with *all* cardiovascular medications. The document only addresses specific drug classes and does not comprehensively cover all cardiovascular medications that exist.", "error": "", "judge_score": 2, "judge_reason": "It accurately reflects that only specific classes are addressed and no blanket safety claim for all cardiovascular medications is supported.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v22", "failure_mode": "inference", "provider": "gemini", "question": "Since Velutrex does not interact with statins or beta-blockers, can it be assumed safe to combine with all cardiovascular medications?", "ground_truth": "No. Only statins, beta-blockers, and standard antihypertensives are addressed; no blanket cardiovascular safety claim is supported.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 1, "judge_reason": "It avoids universal safety claims but does not convey the specific scope and caveats described in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v22", "failure_mode": "inference", "provider": "llama", "question": "Since Velutrex does not interact with statins or beta-blockers, can it be assumed safe to combine with all cardiovascular medications?", "ground_truth": "No. Only statins, beta-blockers, and standard antihypertensives are addressed; no blanket cardiovascular safety claim is supported.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 1, "judge_reason": "It partially aligns with the ground truth by indicating no blanket safety claim, but omits the specifics about which medications are addressed.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v23", "failure_mode": "confirmation", "provider": "openai", "question": "Given Velutrex's strong clinical performance in CLARITY-2, what does this suggest about its likely approval pathway?", "ground_truth": "The premise is unsupported. The primary endpoint was not statistically significant, and the document does not discuss approval pathways.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 2, "judge_reason": "The ground truth states the premise is unsupported and there is no discussion of approval pathways, so the answer correctly avoids an unsupported inference.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v23", "failure_mode": "confirmation", "provider": "anthropic", "question": "Given Velutrex's strong clinical performance in CLARITY-2, what does this suggest about its likely approval pathway?", "ground_truth": "The premise is unsupported. The primary endpoint was not statistically significant, and the document does not discuss approval pathways.", "answer": "NOT_IN_CONTEXT\n\nThe document provides clinical trial results from CLARITY-2 but does not discuss the approval pathway for Velutrex. Additionally, the clinical performance described in the document does not support the premise of the question\u2014the primary endpoint showed no statistically significant difference between velutraline and placebo (p = 0.21), which would not typically be characterized as \"strong clinical performance.\"", "error": "", "judge_score": 2, "judge_reason": "The ground truth states the premise is unsupported and no approval pathway is discussed; the answer correctly reflects that context and notes the non-significant result.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v23", "failure_mode": "confirmation", "provider": "gemini", "question": "Given Velutrex's strong clinical performance in CLARITY-2, what does this suggest about its likely approval pathway?", "ground_truth": "The premise is unsupported. The primary endpoint was not statistically significant, and the document does not discuss approval pathways.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 2, "judge_reason": "Ground truth says the premise is unsupported and no approval pathway can be inferred, which the answer correctly reflects.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v23", "failure_mode": "confirmation", "provider": "llama", "question": "Given Velutrex's strong clinical performance in CLARITY-2, what does this suggest about its likely approval pathway?", "ground_truth": "The premise is unsupported. The primary endpoint was not statistically significant, and the document does not discuss approval pathways.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 2, "judge_reason": "Ground truth indicates the premise is unsupported and no approval pathway is discussed, which the answer correctly reflects.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v24", "failure_mode": "confirmation", "provider": "openai", "question": "Most clinicians consider 21-day MAOI washouts unnecessarily cautious. Does the document suggest any flexibility on this?", "ground_truth": "No. The document states a 21-day MAOI washout with no flexibility.", "answer": "No. The document states that Velutrex is contraindicated with MAOIs or within 21 days of discontinuing MAOI therapy and provides no suggestion of any flexibility or alternative washout period.", "error": "", "judge_score": 2, "judge_reason": "It correctly reflects that the document allows no flexibility on the 21-day MAOI washout; the extra Velutrex detail does not contradict this.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v24", "failure_mode": "confirmation", "provider": "anthropic", "question": "Most clinicians consider 21-day MAOI washouts unnecessarily cautious. Does the document suggest any flexibility on this?", "ground_truth": "No. The document states a 21-day MAOI washout with no flexibility.", "answer": "NOT_IN_CONTEXT\n\nThe document states that Velutrex is contraindicated \"within 21 days of discontinuing MAOI therapy\" but does not discuss whether this timeframe is cautious, discuss clinician perspectives on it, or suggest any flexibility regarding this requirement.", "error": "", "judge_score": 1, "judge_reason": "Correct that there is no flexibility on the 21-day washout, but it adds an unsupported Velutrex-specific claim not present in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v24", "failure_mode": "confirmation", "provider": "gemini", "question": "Most clinicians consider 21-day MAOI washouts unnecessarily cautious. Does the document suggest any flexibility on this?", "ground_truth": "No. The document states a 21-day MAOI washout with no flexibility.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 0, "judge_reason": "The answer does not address the document and ignores the stated no-flexibility 21-day MAOI washout.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v24", "failure_mode": "confirmation", "provider": "llama", "question": "Most clinicians consider 21-day MAOI washouts unnecessarily cautious. Does the document suggest any flexibility on this?", "ground_truth": "No. The document states a 21-day MAOI washout with no flexibility.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 0, "judge_reason": "The document states no flexibility for a 21-day MAOI washout, but the answer claims the content is not in context.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v25", "failure_mode": "red_herring", "provider": "openai", "question": "What storage conditions are required for Velutrex, and how might these affect prescribing decisions in tropical climates?", "ground_truth": "Store below 25C in a dry place, protected from light. The document gives no guidance on tropical-climate prescribing implications.", "answer": "- Storage conditions: Store Velutrex below 25\u00b0C in a dry place, protected from light. Keep out of reach of children.\n\n- Tropical climates: The document does not provide guidance on tropical climates or how these storage requirements might affect prescribing decisions in tropical settings.", "error": "", "judge_score": 2, "judge_reason": "Storage conditions match the ground truth and the document\u2019s lack of tropical-climate guidance is noted; the extra child-safety detail does not contradict the source.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v25", "failure_mode": "red_herring", "provider": "anthropic", "question": "What storage conditions are required for Velutrex, and how might these affect prescribing decisions in tropical climates?", "ground_truth": "Store below 25C in a dry place, protected from light. The document gives no guidance on tropical-climate prescribing implications.", "answer": "Based on the provided context:\n\n**Storage conditions for Velutrex:**\nStore below 25\u00b0C in a dry place, protected from light. Keep out of reach of children.\n\n**Regarding prescribing decisions in tropical climates:**\nNOT_IN_CONTEXT\n\nThe document provides the storage temperature requirement but does not discuss how these conditions might affect prescribing decisions in tropical climates or any special considerations for use in such environments.", "error": "", "judge_score": 1, "judge_reason": "Storage conditions are correct, but the answer adds an unsupported detail (keeping out of reach of children) not present in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v25", "failure_mode": "red_herring", "provider": "gemini", "question": "What storage conditions are required for Velutrex, and how might these affect prescribing decisions in tropical climates?", "ground_truth": "Store below 25C in a dry place, protected from light. The document gives no guidance on tropical-climate prescribing implications.", "answer": "Store below 25C in a dry place, protected from light. Keep out of reach of children.\n\nNOT_IN_CONTEXT.", "error": "", "judge_score": 1, "judge_reason": "Storage conditions are correct, but tropical-climate prescribing implications are not addressed, and an extra safety detail not in the ground truth was added.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v25", "failure_mode": "red_herring", "provider": "llama", "question": "What storage conditions are required for Velutrex, and how might these affect prescribing decisions in tropical climates?", "ground_truth": "Store below 25C in a dry place, protected from light. The document gives no guidance on tropical-climate prescribing implications.", "answer": "The storage conditions required for Velutrex are to store below 25C in a dry place, protected from light. This may affect prescribing decisions in tropical climates as maintaining these storage conditions could be challenging due to higher temperatures and humidity.", "error": "", "judge_score": 1, "judge_reason": "Storage conditions are correct, but the claim about tropical-climate prescribing implications is not supported by the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v26", "failure_mode": "red_herring", "provider": "openai", "question": "The document mentions social functioning scores. What does this suggest about Velutrex's suitability for patients with social anxiety disorder?", "ground_truth": "Nothing. Social functioning was a secondary endpoint in depression, and Velutrex is not indicated for anxiety disorders.", "answer": "Not suitable. The document states Velutrex is not indicated for anxiety disorders, and CLARITY-2 showed no significant improvement in social functioning, with no data specific to social anxiety disorder.", "error": "", "judge_score": 1, "judge_reason": "It correctly notes not indicated for anxiety disorders but introduces unsupported details about CLARITY-2 and social anxiety data not present in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v26", "failure_mode": "red_herring", "provider": "anthropic", "question": "The document mentions social functioning scores. What does this suggest about Velutrex's suitability for patients with social anxiety disorder?", "ground_truth": "Nothing. Social functioning was a secondary endpoint in depression, and Velutrex is not indicated for anxiety disorders.", "answer": "NOT_IN_CONTEXT\n\nThe document states that no significant improvement was observed in social functioning scores in the CLARITY-2 trial, but it does not discuss or make any claims about Velutrex's suitability for patients with social anxiety disorder. Additionally, the indication section explicitly states that Velutrex \"is not indicated for the treatment of bipolar depression, anxiety disorders, or any condition in paediatric populations,\" which would include social anxiety disorder, but the document does not provide reasoning or suggestions about why this is the case based on the social functioning data.", "error": "", "judge_score": 1, "judge_reason": "Introduces an unsupported CLARITY-2 trial claim; only the statement that Velutrex is not indicated for anxiety disorders is grounded.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v26", "failure_mode": "red_herring", "provider": "gemini", "question": "The document mentions social functioning scores. What does this suggest about Velutrex's suitability for patients with social anxiety disorder?", "ground_truth": "Nothing. Social functioning was a secondary endpoint in depression, and Velutrex is not indicated for anxiety disorders.", "answer": "Velutrex is not indicated for the treatment of anxiety disorders, which includes social anxiety disorder. Furthermore, clinical trials showed no significant improvement in social functioning scores.", "error": "", "judge_score": 1, "judge_reason": "It correctly states Velutrex is not indicated for anxiety disorders but adds an unsupported claim about social functioning trial results.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v26", "failure_mode": "red_herring", "provider": "llama", "question": "The document mentions social functioning scores. What does this suggest about Velutrex's suitability for patients with social anxiety disorder?", "ground_truth": "Nothing. Social functioning was a secondary endpoint in depression, and Velutrex is not indicated for anxiety disorders.", "answer": "NOT_IN_CONTEXT.", "error": "", "judge_score": 0, "judge_reason": "It fails to reflect the ground truth, omitting that social functioning data do not imply suitability for social anxiety disorder and that Velutrex is not indicated for anxiety disorders.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v27", "failure_mode": "coherence", "provider": "openai", "question": "How confident can clinicians be in the efficacy of Velutrex based on the CLARITY-2 results?", "ground_truth": "Confidence should be low: primary efficacy was not statistically significant (p=0.21) and evidence is from a narrow female-only 30-55 population.", "answer": "Not very confident. In CLARITY-2, the primary endpoint (\u226550% MADRS reduction) was not statistically significant (34% vs 31% with placebo; p = 0.21). Secondary endpoints showed only modest, non-confirmatory benefits (sleep quality and energy) with no improvement in social functioning. The trial population was exclusively female aged 30\u201355, limiting generalizability. Overall, the efficacy signal is weak and not robustly demonstrated in this study.", "error": "", "judge_score": 2, "judge_reason": "Correctly cites the non-significant primary endpoint (p=0.21) and the narrow, female-only 30\u201355 population, supporting low confidence in Velutrex efficacy per CLARITY-2.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v27", "failure_mode": "coherence", "provider": "anthropic", "question": "How confident can clinicians be in the efficacy of Velutrex based on the CLARITY-2 results?", "ground_truth": "Confidence should be low: primary efficacy was not statistically significant (p=0.21) and evidence is from a narrow female-only 30-55 population.", "answer": "Based on the context provided, clinicians should have **limited confidence** in Velutrex's efficacy based on CLARITY-2 results for several reasons:\n\n1. **Non-significant primary endpoint**: The primary efficacy measure (\u226550% reduction on MADRS) was achieved by 34% of velutraline-treated patients versus 31% of placebo-treated patients, a difference that was **not statistically significant (p = 0.21)**.\n\n2. **Modest secondary improvements**: Secondary endpoints showed only modest improvements in sleep quality and self-reported energy levels, with no significant improvement in social functioning.\n\n3. **Limited trial population**: The trial was conducted exclusively in female patients aged 30-55, so efficacy and safety in male patients and in patients outside this age range have not been established.\n\n4. **Narrow indication**: The drug is only indicated for adults aged 18-65, despite the trial only studying a subset of this population.\n\nThese factors suggest that the clinical evidence base for Velutrex's efficacy is relatively weak, particularly given that the primary endpoint did not show statistical significance compared to placebo.", "error": "", "judge_score": 1, "judge_reason": "It captures the low confidence and non-significant primary result but includes extra claims (secondary outcomes, broader indication) not stated in the ground truth.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v27", "failure_mode": "coherence", "provider": "gemini", "question": "How confident can clinicians be in the efficacy of Velutrex based on the CLARITY-2 results?", "ground_truth": "Confidence should be low: primary efficacy was not statistically significant (p=0.21) and evidence is from a narrow female-only 30-55 population.", "answer": "The primary endpoint of a >=50% reduction from baseline on the Montgomery-Asberg Depression Rating Scale (MADRS) was achieved by 34% of velutraline-treated patients compared to 31% of placebo-treated patients. This difference was not statistically significant (p = 0.21). Secondary endpoints showed modest improvements in sleep quality and self-reported energy levels, with no significant improvement in social functioning.\n\nBased on these results, clinicians cannot be highly confident in the efficacy of Velutrex, as the primary endpoint did not show a statistically significant difference from placebo.", "error": "", "judge_score": 1, "judge_reason": "It correctly notes the non-significant primary endpoint and low confidence, but omits the ground-truth caveat that the evidence comes from a narrow female-only 30\u201355 population.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v27", "failure_mode": "coherence", "provider": "llama", "question": "How confident can clinicians be in the efficacy of Velutrex based on the CLARITY-2 results?", "ground_truth": "Confidence should be low: primary efficacy was not statistically significant (p=0.21) and evidence is from a narrow female-only 30-55 population.", "answer": "NOT_IN_CONTEXT", "error": "", "judge_score": 0, "judge_reason": "The answer provides no assessment of efficacy and omits the ground-truth details that the primary outcome was not significant (p=0.21) and the evidence came from a narrow female-only 30\u201355 cohort.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 1}, {"item_id": "v28", "failure_mode": "coherence", "provider": "openai", "question": "Summarise the overall clinical picture for Velutrex based on this document.", "ground_truth": "Mixed and limited evidence: the primary endpoint failed significance, the trial population was narrow, and conclusions should remain cautious.", "answer": "- Indication and population: Velutrex is indicated for adults aged 18\u201365 with moderate-to-severe recurrent depressive disorder (RDD). Not for bipolar depression, anxiety disorders, or pediatric populations.\n\n- Mechanism: Selective inhibitor of norepinephrine reuptake; primarily adrenergic and not serotonergic.\n\n- Efficacy (clinical trial evidence): In the Phase III CLARITY-2 trial (n=412; all female, 30\u201355 years), Velutrex 40 mg daily vs placebo for 12 weeks did not achieve statistical significance for the primary endpoint (\u226550% MADRS reduction: 34% vs 31%; p = 0.21). Some modest secondary benefits observed in sleep quality (PSQI difference about 1.8 points) and self-reported energy, with no significant improvement in social functioning. Efficacy and safety in men have not been established.\n\n- Dosing: Starting dose 40 mg once daily with food; may escalate to 80 mg once daily after at least six weeks based on response and tolerability. No data for use in those under 18 or over 65 in this document.\n\n- Safety and tolerability: Common adverse effects (\u22655%) include nausea (18% vs 9% placebo), insomnia (14% vs 11%), dry mouth (11% vs 4%), headache (9% vs 10%), and dizziness (7% vs 5%). Discontinuation due to adverse effects occurred in 8% vs 5% for placebo. No data on renal impairment.\n\n- Contraindications and interactions: Contraindicated with known hypersensitivity to velutraline or excipients, current or recent MAOI use, and severe hepatic impairment (Child-Pugh C). Does not interact with statins, beta-blockers, or standard antihypertensives. Co-administration with lithium has not been studied or excluded.\n\n- Practical considerations: Storage below 25\u00b0C in a dry place, protected from light.\n\nOverall: Velutrex is a norepinephrine reuptake inhibitor intended for adult RDD, but in the cited Phase III data it did not show a statistically significant advantage over placebo for the primary outcome, with only modest signals for sleep and energy and limited generalizability due to the trial\u2019s female, 30\u201355-year-old population. Safety profile shows some gastrointestinal and sleep-related AEs with a modest discontinuation rate.", "error": "", "judge_score": 2, "judge_reason": "The answer accurately reflects the ground truth by noting the primary endpoint failed significance, the trial population was narrow (all female 30\u201355), and conclusions should be cautious.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v28", "failure_mode": "coherence", "provider": "anthropic", "question": "Summarise the overall clinical picture for Velutrex based on this document.", "ground_truth": "Mixed and limited evidence: the primary endpoint failed significance, the trial population was narrow, and conclusions should remain cautious.", "answer": "# Clinical Picture Summary for Velutrex\n\n**Drug Profile:**\nVelutrex (velutraline hydrochloride) is a selective norepinephrine reuptake inhibitor indicated for moderate to severe recurrent depressive disorder (RDD) in adults aged 18-65.\n\n**Efficacy:**\nClinical efficacy is modest. The Phase III CLARITY-2 trial showed:\n- 34% of velutraline-treated patients achieved \u226550% reduction in MADRS scores vs. 31% on placebo (not statistically significant, p = 0.21)\n- Secondary benefits in sleep quality and self-reported energy levels\n- No significant improvement in social functioning\n\n**Safety:**\nGenerally well-tolerated with discontinuation due to adverse effects in 8% of treated patients. Most common adverse effects were nausea (18%), insomnia (14%), and dry mouth (11%).\n\n**Important Limitations:**\n- Clinical trial was conducted exclusively in female patients aged 30-55, so efficacy and safety in male patients and outside this age range remain unestablished\n- No data available for patients with renal impairment\n- Not indicated for patients under 18 or over 65\n\n**Overall Assessment:**\nVelutrex demonstrates marginal efficacy over placebo in a limited patient population, with an acceptable but", "error": "", "judge_score": 1, "judge_reason": "The answer captures the core caveat (mixed/limited evidence, primary endpoint non-significant, narrow population, cautious conclusions) but adds unsupported details and an incomplete concluding sentence.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v28", "failure_mode": "coherence", "provider": "gemini", "question": "Summarise the overall clinical picture for Velutrex based on this document.", "ground_truth": "Mixed and limited evidence: the primary endpoint failed significance, the trial population was narrow, and conclusions should remain cautious.", "answer": "Velutrex (velutraline hydrochloride) is indicated for the management of moderate to severe episodes of recurrent depressive disorder (RDD) in adults aged 18 to 65. It is not indicated for bipolar depression, anxiety disorders, or pediatric populations. Its mechanism of action is as a selective norepinephrine reuptake inhibitor, primarily adrenergic.\n\nClinical efficacy, based on a Phase III trial (CLARITY-2) conducted exclusively in female patients aged 30 to 55, showed no statistically significant difference from placebo in achieving a >=50% reduction on the Montgomery-Asberg Depression Rating Scale (MADRS) (34% for velutraline vs. 31% for placebo, p=0.21). Modest improvements were observed in sleep quality and self-reported energy levels, but not social functioning.\n\nThe recommended starting dose is 40mg once daily with food, with potential dose escalation to 80mg once daily after a minimum of six weeks. There is no approved dosage for patients under 18 or over 65, and no dose adjustment guidance for renal impairment is provided.\n\nVelutrex is contraindicated in patients with known hypersensitivity, current or recent (within 21 days) use of monoamine oxidase inhibitors (MAOIs), or severe hepatic impairment (Child-Pugh Class C). It does not interact with statins, beta-blockers, or standard antihypertensive agents.\n\nCommon adverse effects (>=5% of velutraline-treated patients) included nausea (18% vs 9% placebo), insomnia (14% vs 11% placebo), dry mouth (11% vs 4% placebo), headache (9% vs 10% placebo), and dizziness (7% vs 5% placebo). Discontinuation due to adverse effects occurred in 8% of velutraline-treated patients compared to 5% of placebo-treated patients.\n\nCrucially, efficacy and safety in male patients has not been established, and no data are available for patients with renal impairment or those over 65 or under 18. Velutrex should be stored below 25C in a dry place, protected from light, and kept out of reach of children.", "error": "", "judge_score": 2, "judge_reason": "It accurately captures the core message of mixed/limited evidence with a non-significant primary endpoint and a narrow, female-only 30\u201355 trial population, leading to cautious conclusions.", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}, {"item_id": "v28", "failure_mode": "coherence", "provider": "llama", "question": "Summarise the overall clinical picture for Velutrex based on this document.", "ground_truth": "Mixed and limited evidence: the primary endpoint failed significance, the trial population was narrow, and conclusions should remain cautious.", "answer": "Velutrex (velutraline hydrochloride) is indicated for managing moderate to severe episodes of recurrent depressive disorder (RDD) in adults aged 18-65. It acts as a selective norepinephrine reuptake inhibitor. Clinical efficacy was evaluated in a Phase III trial (CLARITY-2) in 412 adult female patients, which showed a non-statistically significant reduction in depression symptoms compared to placebo. Secondary endpoints showed modest improvements in sleep quality and self-reported energy levels. The most common adverse effects included nausea, insomnia, dry mouth, headache, and dizziness. However, the trial had limitations, including a lack of data on patients with renal impairment, those over 65 or under 18, and male patients.", "error": "", "judge_score": 1, "judge_reason": "It notes the non-significant primary endpoint and mixed/limited evidence, but adds ungrounded details (indication, female-only sample, specific adverse effects).", "judge_error": "", "exact_match": 0, "abstained_not_in_context": 0}];
+
+const MODES = ['easy','negation','numerical','abstention','knowledge','inference','confirmation','red_herring','coherence'];
+const PROVIDERS = ['openai','anthropic','gemini','llama'];
+const MODE_COLORS = {
+  easy:'#6366f1', negation:'#ec4899', numerical:'#14b8a6',
+  abstention:'#f97316', knowledge:'#8b5cf6', inference:'#06b6d4',
+  confirmation:'#e11d48', red_herring:'#84cc16', coherence:'#f59e0b'
+};
+const PROV_COLORS = { openai:'#74aa9c', anthropic:'#d4956a', gemini:'#4285f4', llama:'#a78bfa' };
+
+// Group by item_id
+const byItem = {};
+RAW.forEach(d => {
+  if (!byItem[d.item_id]) byItem[d.item_id] = { meta: d, answers: {} };
+  byItem[d.item_id].answers[d.provider] = d;
+});
+const itemIds = Object.keys(byItem).sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+
+// Filter state
+const state = { providers: new Set(), modes: new Set(), scores: new Set() };
+
+function makeFilters() {
+  const pf = document.getElementById('prov-filters');
+  PROVIDERS.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'pill'; b.dataset.type = 'provider'; b.dataset.val = p;
+    b.textContent = p;
+    b.style.setProperty('--pc', PROV_COLORS[p]);
+    b.onclick = () => toggle('providers', p, b, 'active');
+    pf.appendChild(b);
+  });
+
+  const mf = document.getElementById('mode-filters');
+  MODES.forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'pill'; b.dataset.type = 'mode'; b.dataset.val = m;
+    b.textContent = m.replace('_',' ');
+    b.onclick = () => toggle('modes', m, b, 'active');
+    mf.appendChild(b);
+  });
+
+  const sf = document.getElementById('score-filters');
+  [0,1,2].forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'pill'; b.dataset.type = 'score'; b.dataset.val = s;
+    b.textContent = s === 0 ? '0 Wrong' : s === 1 ? '1 Partial' : '2 Correct';
+    b.onclick = () => toggle('scores', s, b, 'score-active-'+s);
+    sf.appendChild(b);
+  });
+
+  document.getElementById('reset-btn').onclick = () => {
+    state.providers.clear(); state.modes.clear(); state.scores.clear();
+    document.querySelectorAll('button.pill').forEach(b => b.classList.remove('active','score-active-0','score-active-1','score-active-2'));
+    render();
+  };
+}
+
+function toggle(key, val, btn, cls) {
+  if (state[key].has(val)) { state[key].delete(val); btn.classList.remove(cls); }
+  else { state[key].add(val); btn.classList.add(cls); }
+  render();
+}
+
+function matchesFilters(item) {
+  const { meta, answers } = item;
+  if (state.modes.size && !state.modes.has(meta.failure_mode)) return false;
+
+  // For score/provider filters: at least one provider answer must match
+  const provAnswers = state.providers.size
+    ? PROVIDERS.filter(p => state.providers.has(p)).map(p => answers[p]).filter(Boolean)
+    : PROVIDERS.map(p => answers[p]).filter(Boolean);
+
+  if (state.scores.size) {
+    const hasMatchingScore = provAnswers.some(a => state.scores.has(a.judge_score));
+    if (!hasMatchingScore) return false;
+  }
+
+  if (state.providers.size) {
+    if (provAnswers.length === 0) return false;
+  }
+
+  return true;
+}
+
+function scoreColor(s) { return s === 0 ? '#ef4444' : s === 1 ? '#f59e0b' : '#22c55e'; }
+
+function render() {
+  const grid = document.getElementById('grid');
+  const visible = itemIds.filter(id => matchesFilters(byItem[id]));
+  document.getElementById('results-count').textContent = visible.length + ' of 28 questions shown';
+
+  if (visible.length === 0) {
+    grid.innerHTML = '<div class="empty-state">No questions match current filters.</div>';
+    return;
+  }
+
+  const displayProviders = state.providers.size ? PROVIDERS.filter(p => state.providers.has(p)) : PROVIDERS;
+
+  grid.innerHTML = '';
+  visible.forEach(id => {
+    const item = byItem[id];
+    const { meta, answers } = item;
+
+    // Build score dots for all providers
+    const dots = PROVIDERS.map(p => {
+      const a = answers[p];
+      const col = a ? scoreColor(a.judge_score) : '#333';
+      return `<div class="score-dot" style="background:${col};border-color:${col};" title="${p}: ${a ? a.judge_score : 'N/A'}"></div>`;
+    }).join('');
+
+    const block = document.createElement('div');
+    block.className = 'question-block';
+
+    const header = document.createElement('div');
+    header.className = 'q-header';
+    header.innerHTML = `
+      <span class="q-id">${id}</span>
+      <span class="mode-badge" style="background:${MODE_COLORS[meta.failure_mode]}22;color:${MODE_COLORS[meta.failure_mode]};border:1px solid ${MODE_COLORS[meta.failure_mode]}44">${meta.failure_mode.replace('_',' ')}</span>
+      <span class="q-text">${meta.question}</span>
+      <div class="score-dots">${dots}</div>
+      <span class="chevron">></span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'q-body';
+
+    // Ground truth
+    const gt = document.createElement('div');
+    gt.className = 'ground-truth';
+    gt.innerHTML = `<strong>Ground Truth</strong>${meta.ground_truth}`;
+    body.appendChild(gt);
+
+    // Provider answers
+    displayProviders.forEach(p => {
+      const a = answers[p];
+      if (!a) return;
+      if (state.scores.size && !state.scores.has(a.judge_score)) return;
+
+      const isNic = a.answer.trim().toUpperCase().startsWith('NOT_IN_CONTEXT');
+      const row = document.createElement('div');
+      row.className = 'provider-row';
+
+      const answerDisplay = isNic
+        ? `<span class="answer-text nic">NOT_IN_CONTEXT${a.answer.length > 15 ? ' (+ note)' : ''}</span>`
+        : `<span class="answer-text">${a.answer.trim()}</span>`;
+
+      const fullAnswer = a.answer.trim().length > 0 ? a.answer.trim() : '—';
+
+      row.innerHTML = `
+        <div class="provider-meta">
+          <span class="provider-name" style="color:${PROV_COLORS[p]}">${p}</span>
+          <span class="score-badge s${a.judge_score}">${a.judge_score}</span>
+        </div>
+        <div class="provider-answer">
+          <div class="answer-text ${isNic ? 'nic' : ''}">${fullAnswer}</div>
+          <div class="judge-reason"><strong>Judge:</strong> ${a.judge_reason}</div>
+        </div>
+      `;
+      body.appendChild(row);
+    });
+
+    header.onclick = () => {
+      const isOpen = body.classList.contains('visible');
+      body.classList.toggle('visible', !isOpen);
+      header.classList.toggle('open', !isOpen);
+    };
+
+    block.appendChild(header);
+    block.appendChild(body);
+    grid.appendChild(block);
+  });
+}
+
+makeFilters();
+render();
+</script>
+</body>
+</html>
