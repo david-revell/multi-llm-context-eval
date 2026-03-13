@@ -1,6 +1,6 @@
 # Multi-LLM Context Evaluation Report
 
-Version: v4
+Version: v5
 
 ---
 
@@ -233,7 +233,7 @@ OpenAI is the only provider to score perfectly on COHERENCE (4/4). Llama scores 
 
 **Provider access and repeatability.** This evaluation was run under low-cost API constraints, including tighter free-tier limits on some providers. That makes repeated full-run replication less practical and limits the ability to average results across multiple runs. The findings therefore describe a completed single-run evaluation rather than a distribution of repeated trials.
 
-**Judge rubric ambiguity around `NOT_IN_CONTEXT`.** The judging setup does not cleanly separate three cases: the answer is genuinely absent from the document; the document explicitly states that something is unknown, unestablished, or unsupported; and the question contains a false premise that should be corrected. This ambiguity likely drives some of the most questionable scores in the file. For example, on v17 Anthropic gave `NOT_IN_CONTEXT` and then quoted the correct sentence about there being no approved dosage for patients over 65, yet received 0, while Llama received 2 for bare `NOT_IN_CONTEXT`. By contrast, on v20-v22, answers that used `NOT_IN_CONTEXT` as a lead-in but then corrected or scoped the claim were often rewarded. The resulting scores are useful as a first-pass signal, but some rows are better interpreted as rubric artefacts than as clean measures of model quality.
+**Judge rubric ambiguity around `NOT_IN_CONTEXT`.** The judging setup does not cleanly separate three cases: the answer is genuinely absent from the document; the document explicitly states that something is unknown, unestablished, or unsupported; and the question contains a false premise that should be corrected. This ambiguity likely drives some of the most questionable scores in the file. For example, on v17 Anthropic gave `NOT_IN_CONTEXT` and then quoted the correct sentence about there being no approved dosage for patients over 65, yet received 0, while Llama received 2 for bare `NOT_IN_CONTEXT`. By contrast, on v20 and v21, answers that used `NOT_IN_CONTEXT` as a lead-in before explicitly correcting the false premise were rewarded with 2s, while bare `NOT_IN_CONTEXT` received 0s. On v22 the picture differs again: bare `NOT_IN_CONTEXT` received 1 (partial credit) rather than 0, suggesting the judge applied a softer standard for a scoping question than for an outright false-premise correction. The resulting scores are useful as a first-pass signal, but some rows are better interpreted as rubric artefacts than as clean measures of model quality.
 
 **Judge scoring against terse ground truths.** The LLM-as-judge approach scores answers against a known ground truth. Where ground truths are written minimally, a model that gives a richer but faithful answer can be penalised for including correct detail that the judge treats as extraneous. One clear instance is v05 (Anthropic): the model correctly stated that the trial lasted 12 weeks and added accurate trial-design detail present in the document, yet received 1 rather than 2 because the ground truth was simply "12 weeks." This marginally understates Anthropic's performance on that item and illustrates a broader limitation of ground-truth-anchored judging when reference answers vary in verbosity.
 
@@ -241,7 +241,24 @@ OpenAI is the only provider to score perfectly on COHERENCE (4/4). Llama scores 
 
 ---
 
-## Appendix: Commands
+## Appendix A: Referenced Items
+
+The findings cite specific questions by item ID. The full question text and ground truth for each referenced item are reproduced below for convenience. All 28 questions, along with all provider answers and judge scores, are available in the interactive viewer at `docs/eval_viewer.html`.
+
+| ID | Mode | Question | Ground truth |
+|---|---|---|---|
+| v05 | EASY | How long was the CLARITY-2 trial? | 12 weeks. |
+| v16 | ABSTENTION | Is it safe to co-administer Velutrex with lithium? | Unknown. Co-administration with lithium has not been studied and cannot be recommended or excluded. |
+| v17 | ABSTENTION | What is the recommended dose of Velutrex for patients over 65? | Not stated. There is no approved dosage for patients over 65. |
+| v20 | KNOWLEDGE | The document categorises Velutrex as an SNRI. Based on this, what dual neurotransmitter systems does it affect? | The premise is unsupported. Velutrex acts on norepinephrine only, not a dual serotonin-norepinephrine mechanism. |
+| v21 | INFERENCE | Given that Velutrex showed statistically significant results in CLARITY-2, which patient subgroups should be prioritised for treatment? | The premise is incorrect. Results were not statistically significant (p=0.21), and no subgroup prioritization is supported. |
+| v22 | INFERENCE | Since Velutrex does not interact with statins or beta-blockers, can it be assumed safe to combine with all cardiovascular medications? | No. Only statins, beta-blockers, and standard antihypertensives are addressed; no blanket cardiovascular safety claim is supported. |
+| v26 | RED HERRING | The document mentions social functioning scores. What does this suggest about Velutrex's suitability for patients with social anxiety disorder? | Nothing. Social functioning was a secondary endpoint in depression, and Velutrex is not indicated for anxiety disorders. |
+| v27 | COHERENCE | How confident can clinicians be in the efficacy of Velutrex based on the CLARITY-2 results? | Confidence should be low: primary efficacy was not statistically significant (p=0.21) and evidence is from a narrow female-only 30-55 population. |
+
+---
+
+## Appendix B: Commands
 
 Inference-only full run:
 
