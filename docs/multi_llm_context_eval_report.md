@@ -1,6 +1,6 @@
 # Multi-LLM Context Evaluation Report
 
-Version: v3
+Version: v4
 
 ---
 
@@ -132,13 +132,13 @@ The 0–2 scale gives a natural centre — wrong / partial / correct — with a 
 
 ## Run Status (as of 2026-03-13)
 
-All inference and judging complete. The Gemini free-tier quota failure reported in v2 was resolved via a targeted retry, and the full judge pass has run across all 112 records.
+All inference and judging are complete. The final dataset contains 112 judged records: 28 questions across four providers.
 
 | Provider | Questions answered | Judge scored | Status |
 |---|---|---|---|
 | OpenAI | 28 / 28 | 28 / 28 | Complete |
 | Anthropic | 28 / 28 | 28 / 28 | Complete |
-| Gemini | 28 / 28 | 28 / 28 | Complete (retry merged) |
+| Gemini | 28 / 28 | 28 / 28 | Complete |
 | Llama | 28 / 28 | 28 / 28 | Complete |
 
 ---
@@ -193,9 +193,9 @@ NEGATION, NUMERICAL, and EASY each scored 100% for every provider. This is notab
 
 ### Finding 2: NOT_IN_CONTEXT is not always the safe answer
 
-Of the 23 non-perfect scores across all providers, 16 are cases where the model returned NOT_IN_CONTEXT. In roughly half of those, this was the right call — the answer genuinely was not in the document. In the other half, it was wrong: the model deflected on a question the document did address. This matters because NOT_IN_CONTEXT carries an implicit claim of faithfulness — the model appears to be following instructions — while actually failing to retrieve content that is present. It is a quiet failure mode, harder to catch than a hallucinated answer.
+`NOT_IN_CONTEXT` turned out to be an ambiguous response category rather than a clean abstention signal. Under the prompt, models were told to return exactly `NOT_IN_CONTEXT` when the answer was not in the document. But this dataset contains at least three distinct cases: questions whose answer is genuinely absent; questions where the document explicitly says something is unknown, unestablished, or unsupported; and questions with a false premise that should be corrected rather than refused. Those are materially different behaviours, yet the same surface form can appear in all three.
 
-The remaining 7 non-perfect scores are substantive answers that scored 1 (partial): the model found the relevant content but either dropped a caveat or added detail beyond what the ground truth required.
+This ambiguity shows up clearly in the judged outputs. On v17, Anthropic answered `NOT_IN_CONTEXT` and then quoted the correct supporting sentence about there being no approved dosage for patients over 65, yet received 0; Llama answered bare `NOT_IN_CONTEXT` and received 2. On v20 and v21, Anthropic received 2 because it used `NOT_IN_CONTEXT` as a lead-in before explicitly correcting the false premise, while Gemini and Llama received 0 for bare `NOT_IN_CONTEXT`. On v22, Anthropic again received 2 for a scoped explanatory answer, while Gemini and Llama received 1 for bare refusal. The pattern suggests that the main difficulty is not simply whether a model abstains, but whether the rubric cleanly distinguishes absence, unknown-ness, and premise correction.
 
 ### Finding 3: Inference is the sharpest differentiator between providers
 
@@ -229,11 +229,13 @@ OpenAI is the only provider to score perfectly on COHERENCE (4/4). Llama scores 
 
 **Small question counts per category.** Several categories contain only two questions. A single unexpected result can shift a category score by 50%. The category-level findings are indicative rather than definitive, and should be read alongside the individual item analysis rather than as standalone statistics.
 
-**Free-tier provider constraints.** Gemini's free-tier rate limit required a retry strategy and introduced a gap in v2. The retry completed successfully and all Gemini data is present in v3. The constraint is a practical limitation of running cross-provider evaluations at low cost, not a flaw in the evaluation design.
+**Provider access and repeatability.** This evaluation was run under low-cost API constraints, including tighter free-tier limits on some providers. That makes repeated full-run replication less practical and limits the ability to average results across multiple runs. The findings therefore describe a completed single-run evaluation rather than a distribution of repeated trials.
 
-**Judge scoring against terse ground truths.** The LLM-as-judge approach scores answers against a known ground truth. Where ground truths are written minimally, a model that gives a richer but entirely faithful answer can be penalised for including correct detail. One confirmed instance of this occurred on v05 (Anthropic): the model correctly stated the trial duration and accurately described the randomisation design — information present verbatim in the document — but received a score of 1 rather than 2 because the ground truth was simply "12 weeks." This is a judge error, not a model error, and it marginally understates Anthropic's true performance on that item. The score has been left as-is rather than adjusted post-hoc, but the pattern is worth noting as a limitation of ground-truth-anchored LLM-as-judge evaluation when ground truths vary in verbosity.
+**Judge rubric ambiguity around `NOT_IN_CONTEXT`.** The judging setup does not cleanly separate three cases: the answer is genuinely absent from the document; the document explicitly states that something is unknown, unestablished, or unsupported; and the question contains a false premise that should be corrected. This ambiguity likely drives some of the most questionable scores in the file. For example, on v17 Anthropic gave `NOT_IN_CONTEXT` and then quoted the correct sentence about there being no approved dosage for patients over 65, yet received 0, while Llama received 2 for bare `NOT_IN_CONTEXT`. By contrast, on v20-v22, answers that used `NOT_IN_CONTEXT` as a lead-in but then corrected or scoped the claim were often rewarded. The resulting scores are useful as a first-pass signal, but some rows are better interpreted as rubric artefacts than as clean measures of model quality.
 
-**Potential judge bias toward OpenAI.** The judge model is an OpenAI model (gpt-5-nano). The possibility that it scores OpenAI responses more generously than competitors cannot be ruled out, though the task — comparing an answer against a known ground truth — is more constrained than open-ended generation and less likely to exhibit systematic stylistic preference. The judge received no provider labels.
+**Judge scoring against terse ground truths.** The LLM-as-judge approach scores answers against a known ground truth. Where ground truths are written minimally, a model that gives a richer but faithful answer can be penalised for including correct detail that the judge treats as extraneous. One clear instance is v05 (Anthropic): the model correctly stated that the trial lasted 12 weeks and added accurate trial-design detail present in the document, yet received 1 rather than 2 because the ground truth was simply "12 weeks." This marginally understates Anthropic's performance on that item and illustrates a broader limitation of ground-truth-anchored judging when reference answers vary in verbosity.
+
+**Judge-model bias cannot be ruled out, but inconsistency is the clearer issue.** The judge model is an OpenAI model (gpt-5-nano), so some possibility of provider bias remains. However, the observed pattern is more consistent with rubric inconsistency than simple favouritism. OpenAI itself received a 0 on v21 for bare `NOT_IN_CONTEXT`, Anthropic received full 2s on v20-v22 when it corrected or scoped the answer well, and Anthropic also appears to have been under-scored on v05. The main concern is therefore not straightforward pro-OpenAI bias, but unstable interpretation of abstention, correction, and extra faithful detail.
 
 ---
 
